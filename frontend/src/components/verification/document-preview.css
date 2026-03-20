@@ -1,0 +1,61 @@
+/* Professional PDF viewer overrides — modern, clean aesthetic */
+
+/* Main viewer container — full height, subtle background */
+.rpv-core__viewer {
+  background: #f8fafc !important;
+}
+
+/* Toolbar — clean, minimal, matches AVAE dashboard */
+.rpv-default-layout__toolbar {
+  background: #ffffff !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+  padding: 0.5rem 1rem !important;
+  min-height: 2.75rem !important;
+}
+
+.rpv-default-layout__toolbar .rpv-core__button {
+  color: #475569 !important;
+  background: transparent !important;
+  border-radius: 0.375rem !important;
+}
+
+.rpv-default-layout__toolbar .rpv-core__button:hover {
+  background: #f1f5f9 !important;
+  color: #0f172a !important;
+}
+
+/* Page container — more breathing room, larger viewport */
+.rpv-core__inner-pages {
+  padding: 1.5rem !important;
+}
+
+/* Individual page — subtle shadow, clean white */
+.rpv-core__inner-page {
+  background: #ffffff !important;
+  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1) !important;
+  border-radius: 0.25rem !important;
+}
+
+/* Loading state — subtle, professional */
+.rpv-core__doc-loading {
+  background: #f8fafc !important;
+}
+
+/* Scale display in toolbar */
+.rpv-core__current-scale {
+  color: #64748b !important;
+  font-size: 0.8125rem !important;
+  font-weight: 500 !important;
+}
+
+/* Ensure full height for document area */
+.rpv-default-layout__container {
+  display: flex !important;
+  flex-direction: column !important;
+  height: 100% !important;
+}
+
+.rpv-default-layout__body {
+  flex: 1 !important;
+  min-height: 0 !important;
+}

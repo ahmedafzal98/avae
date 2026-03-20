@@ -1,0 +1,191 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* AVAE Sovereign Design System — High-Trust Monochromatic */
+/* Typography: Inter (sans), JetBrains Mono (technical). Headings 16–20px, Body 14px, Labels 12px */
+/* Colors: Slate base (50–950). Primary text Slate 900. Placeholder Slate 500. Borders Slate 200 */
+/* Semantic: Verified #059669, Discrepancy #dc2626, Pending #d97706 */
+:root {
+  /* Slate scale (Tailwind reference) */
+  --slate-50: #f8fafc;
+  --slate-100: #f1f5f9;
+  --slate-200: #e2e8f0;
+  --slate-300: #cbd5e1;
+  --slate-400: #94a3b8;
+  --slate-500: #64748b;
+  --slate-600: #475569;
+  --slate-700: #334155;
+  --slate-800: #1e293b;
+  --slate-900: #0f172a;
+  --slate-950: #020617;
+  /* Design tokens */
+  --primary: #0f172a;
+  --primary-foreground: #ffffff;
+  --secondary: #475569;
+  --secondary-foreground: #0f172a;
+  --tertiary: #059669;
+  --destructive: #dc2626;
+  --destructive-foreground: #ffffff;
+  --warning: #d97706;
+  --muted: #f1f5f9;
+  --muted-foreground: #64748b; /* Slate 500 for secondary/placeholder */
+  --background: #ffffff;
+  --foreground: #0f172a;
+  --card: #ffffff;
+  --card-foreground: #0f172a;
+  --popover: #ffffff;
+  --popover-foreground: #0f172a;
+  --accent: #f1f5f9;
+  --accent-foreground: #0f172a;
+  --border: #e2e8f0; /* Slate 200 */
+  --input: #e2e8f0;
+  --ring: #475569;
+  --radius: 0.5rem;
+  --chart-1: #0f172a;
+  --chart-2: #059669;
+  --chart-3: #dc2626;
+  --chart-4: #d97706;
+  --chart-5: #475569;
+  --sidebar: #f8fafc; /* Slate 50 for subtle sectioning */
+  --sidebar-foreground: #0f172a;
+  --sidebar-primary: #0f172a;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f1f5f9;
+  --sidebar-accent-foreground: #0f172a;
+  --sidebar-border: #e2e8f0;
+  --sidebar-ring: #475569;
+  color-scheme: light;
+}
+
+/* AVAE Sovereign Design System — Light mode only (Sovereign Terminal aesthetic) */
+/* Dark mode disabled; design spec requires monochromatic light palette */
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --color-secondary: var(--secondary);
+  --color-tertiary: var(--tertiary);
+  --color-destructive: var(--destructive);
+  --color-warning: var(--warning);
+  --color-muted: var(--muted);
+  --font-sans: var(--font-inter);
+  --font-mono: var(--font-jetbrains-mono);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+body {
+  font-family: var(--font-inter), system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* AVAE Sovereign typography scale */
+.text-heading {
+  font-size: 1rem;
+  font-weight: 600;
+}
+.text-heading-lg {
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+.text-body {
+  font-size: 0.875rem;
+  font-weight: 400;
+}
+.text-label {
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+/* AVAE Sovereign Design System — Dark mode (.dark class) */
+.dark {
+  --background: #0f172a;
+  --foreground: #f8fafc;
+  --primary: #f8fafc;
+  --primary-foreground: #0f172a;
+  --secondary: #94a3b8;
+  --secondary-foreground: #0f172a;
+  --tertiary: #34d399;
+  --destructive: #f87171;
+  --destructive-foreground: #0f172a;
+  --warning: #fbbf24;
+  --muted: #1e293b;
+  --muted-foreground: #94a3b8;
+  --card: #1e293b;
+  --card-foreground: #f8fafc;
+  --popover: #1e293b;
+  --popover-foreground: #f8fafc;
+  --accent: #334155;
+  --accent-foreground: #f8fafc;
+  --border: #334155;
+  --input: #334155;
+  --ring: #94a3b8;
+  --chart-1: #f8fafc;
+  --chart-2: #34d399;
+  --chart-3: #f87171;
+  --chart-4: #fbbf24;
+  --chart-5: #94a3b8;
+  --sidebar: #0f172a;
+  --sidebar-foreground: #f8fafc;
+  --sidebar-primary: #34d399;
+  --sidebar-primary-foreground: #0f172a;
+  --sidebar-accent: #1e293b;
+  --sidebar-accent-foreground: #f8fafc;
+  --sidebar-border: #334155;
+  --sidebar-ring: #94a3b8;
+}
+
+/* Task 8.1: WCAG — body text uses --foreground on --background (≥4.5:1 contrast). */
+@layer base {
+  * {
+    @apply border-border;
+  }
+  *:focus-visible {
+    @apply outline-2 outline-offset-2 outline-ring;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+  }
+  /* Ensure main content text has sufficient contrast (avoid muted for long copy) */
+  main {
+    @apply text-foreground;
+  }
+}

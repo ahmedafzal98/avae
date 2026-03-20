@@ -1,0 +1,34 @@
+# AVAE — Root .gitignore
+
+# Environment (secrets — never commit)
+.env
+.env.local
+.env.*.local
+
+# Runtime / dev
+logs/
+.dev-stack.pids
+*.log
+
+# Test files (large binaries — add locally as needed)
+*.pdf
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+
+# Node
+node_modules/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo

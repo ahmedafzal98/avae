@@ -1,0 +1,48 @@
+fastapi>=0.109.0
+uvicorn[standard]>=0.27.0
+celery[redis]==5.3.6
+redis==5.0.1
+pydantic[email]>=2.12.5
+pydantic-settings==2.1.0
+email-validator>=2.0.0
+python-multipart==0.0.6
+python-dotenv>=1.2.1
+
+# Database
+sqlalchemy>=2.0.25
+psycopg2-binary==2.9.9
+asyncpg>=0.29.0
+alembic==1.13.1
+
+# PDF Processing (Legacy - kept as fallback)
+PyPDF2==3.0.1
+pymupdf>=1.24.0  # Task 4.1: Page-level bursting
+pdfplumber==0.10.3
+pdf2image==1.16.3
+tabula-py==2.9.0
+pillow==10.2.0
+
+# LlamaIndex for Advanced PDF Parsing (Pydantic v2 compatible)
+llama-parse>=0.6.94,<0.7.0
+llama-index-core>=0.12.0,<0.13.0
+
+# LangGraph (Phase 3 orchestration + Phase 5 HITL checkpoints)
+langgraph>=0.2.0
+langgraph-checkpoint-postgres>=2.0.0
+psycopg[binary]>=3.2.0
+psycopg-pool>=3.2.0
+
+# RAG Dependencies
+langchain-openai>=0.2.0
+llama-index-embeddings-openai>=0.3.1,<0.4.0
+llama-index-vector-stores-postgres>=0.3.2,<0.4.0
+pgvector==0.2.5
+openai>=1.12.0
+
+# AWS Services
+boto3==1.42.49
+botocore==1.42.49
+
+# Streamlit UI
+streamlit==1.31.0
+pandas==2.2.0

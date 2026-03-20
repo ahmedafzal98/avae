@@ -1,0 +1,8 @@
+# Dependencies for test_document.py (PDF → LlamaParse → LLM extraction)
+# Install: pip install -r requirements-test.txt
+# Or use document-processor's venv which has these already.
+
+python-dotenv>=1.2.0
+pydantic>=2.0
+langchain-openai>=0.2.0
+llama-parse>=0.6.94
