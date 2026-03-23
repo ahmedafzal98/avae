@@ -88,20 +88,29 @@ function VerificationDashboardContent() {
   /** Row hovered/clicked for PDF highlight (red=discrepancy, green=verified) */
   const [highlightedRow, setHighlightedRow] = useState<VerificationFieldRow | null>(null);
 
-  const openHitlModal = useCallback(
-    (row?: VerificationFieldRow | null, prefillJustification?: string | null) => {
-      setHitlSelectedRow(row ?? null);
-      setHitlOverrideJustificationPrefill(prefillJustification ?? null);
-      setHitlModalOpen(true);
-    },
-    []
-  );
-
   const closeHitlModal = useCallback(() => {
     setHitlModalOpen(false);
     setHitlSelectedRow(null);
     setHitlOverrideJustificationPrefill(null);
   }, []);
+
+  const openHitlModal = useCallback(
+    (row?: VerificationFieldRow | null, prefillJustification?: string | null) => {
+      const isSameRow =
+        hitlSelectedRow &&
+        row &&
+        hitlSelectedRow.field === row.field &&
+        String(hitlSelectedRow.document_value) === String(row.document_value);
+      if (hitlModalOpen && isSameRow) {
+        closeHitlModal();
+        return;
+      }
+      setHitlSelectedRow(row ?? null);
+      setHitlOverrideJustificationPrefill(prefillJustification ?? null);
+      setHitlModalOpen(true);
+    },
+    [hitlModalOpen, hitlSelectedRow, closeHitlModal]
+  );
 
   const handleHitlModalOpenChange = useCallback(
     (next: boolean) => {
@@ -163,8 +172,8 @@ function VerificationDashboardContent() {
             Verification
           </h1>
           <p className="mt-1 text-sm text-[#64748b]">
-            Review documents requiring human verification — compare extracted data
-            with API records
+            Review documents requiring human verification — compare submitted
+            documents against official registry records
           </p>
         </div>
         {hitlError && (
@@ -220,7 +229,9 @@ function VerificationDashboardContent() {
             <div className="flex min-h-[400px] min-w-0 flex-1 flex-col lg:min-w-0">
               <VerificationFeedPane
                 className="h-full min-h-0"
-                batchId={documentIdNum != null ? `BATCH-${documentIdNum}` : undefined}
+                batchId={documentIdNum != null ? `Document #${documentIdNum}` : undefined}
+                auditTarget={verification?.audit_target}
+                officialRecordSyncedAt={verification?.official_record_synced_at}
                 rows={verification?.rows ?? []}
                 isLoading={verificationLoading}
                 error={
@@ -299,9 +310,47 @@ function VerificationDashboardContent() {
   );
 }
 
+/** Shell shown immediately while useSearchParams resolves — screen opens without waiting. */
+function HITLPageShell() {
+  return (
+    <div className="flex h-[calc(100vh-4rem)] flex-col p-6">
+      <div className="mb-6 shrink-0 space-y-2">
+        <h1 className="text-2xl font-bold tracking-tight text-[#0f172a]">
+          Verification
+        </h1>
+        <p className="mt-1 text-sm text-[#64748b]">
+          Review documents requiring human verification — compare submitted documents against official registry records
+        </p>
+      </div>
+      <div className="flex min-h-0 flex-1 flex-col gap-4 lg:flex-row">
+        <div className="lg:w-64 shrink-0 space-y-2 rounded-lg border border-border bg-muted/30 p-4">
+          <p className="text-sm font-medium text-muted-foreground">Documents</p>
+          <div className="space-y-2">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-10 animate-pulse rounded bg-muted" />
+            ))}
+          </div>
+        </div>
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 lg:flex-row">
+          <div className="flex min-h-[400px] min-w-0 flex-1 flex-col rounded-lg border border-border bg-muted/30">
+            <div className="flex flex-1 items-center justify-center p-8">
+              <p className="text-sm text-muted-foreground">Select a document to view</p>
+            </div>
+          </div>
+          <div className="flex min-h-[400px] min-w-0 flex-1 flex-col rounded-lg border border-border bg-muted/30">
+            <div className="flex flex-1 items-center justify-center p-8">
+              <p className="text-sm text-muted-foreground">Verification summary</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function VerificationDashboardPage() {
   return (
-    <Suspense fallback={<div className="p-6">Loading…</div>}>
+    <Suspense fallback={<HITLPageShell />}>
       <VerificationDashboardContent />
     </Suspense>
   );

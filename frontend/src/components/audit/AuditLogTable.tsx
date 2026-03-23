@@ -52,37 +52,137 @@ function formatAuditTarget(target: string): string {
   return target;
 }
 
-/** Full audit details in expandable row (Phase 7.9) */
-function AuditLogDetailPanel({ detail }: { detail: AuditLogDetailResponse }) {
+function formatFieldName(key: string): string {
+  return key
+    .split(/[-_]/)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join(" ");
+}
+
+function formatCellValue(val: unknown): string {
+  if (val === null || val === undefined) return "—";
+  if (typeof val === "string") return val;
+  if (typeof val === "number" || typeof val === "boolean") return String(val);
+  if (typeof val === "object") return JSON.stringify(val);
+  return String(val);
+}
+
+function DataSummaryTable({
+  data,
+  title,
+  className,
+}: {
+  data: Record<string, unknown>;
+  title: string;
+  className?: string;
+}) {
+  const entries = Object.entries(data ?? {}).filter(
+    ([, v]) => v !== null && v !== undefined && v !== ""
+  );
+  if (entries.length === 0) return null;
   return (
-    <div className="grid gap-3 text-sm">
-      <div className="grid gap-2 sm:grid-cols-2">
-        <div>
-          <span className="font-medium text-muted-foreground">Filename</span>
-          <p className="font-mono text-xs break-all">{detail.filename || "—"}</p>
-        </div>
+    <div className={className}>
+      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+        {title}
+      </p>
+      <div className="rounded-lg border border-border overflow-hidden">
+        <table className="w-full text-sm">
+          <tbody>
+            {entries.map(([key, val]) => (
+              <tr key={key} className="border-b border-border last:border-b-0">
+                <td className="px-3 py-2 text-muted-foreground font-medium w-1/3">
+                  {formatFieldName(key)}
+                </td>
+                <td className="px-3 py-2 font-mono text-xs">
+                  {formatCellValue(val)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
-      {detail.discrepancy_flags && detail.discrepancy_flags.length > 0 && (
-        <div>
-          <span className="font-medium text-muted-foreground">Discrepancy flags</span>
-          <pre className="mt-1 max-h-32 overflow-auto rounded border border-border bg-background p-2 text-xs">
-            {JSON.stringify(detail.discrepancy_flags, null, 2)}
-          </pre>
-        </div>
-      )}
+    </div>
+  );
+}
+
+function DiscrepancySummary({
+  flags,
+  className,
+}: {
+  flags: Array<{ field?: string; extracted?: unknown; api?: unknown }>;
+  className?: string;
+}) {
+  const valid = flags?.filter((f) => f && typeof f === "object" && (f.field ?? f.extracted ?? f.api) != null) ?? [];
+  if (valid.length === 0) return null;
+  return (
+    <div className={className}>
+      <p className="text-xs font-semibold uppercase tracking-wider text-amber-700 mb-2">
+        Difference Found — {valid.length} field{valid.length !== 1 ? "s" : ""}
+      </p>
+      <div className="rounded-lg border border-amber-200 overflow-hidden bg-amber-50/30">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="bg-amber-50/50 border-b border-amber-200">
+              <th className="px-3 py-2 text-left text-xs font-semibold text-amber-800">Field</th>
+              <th className="px-3 py-2 text-left text-xs font-semibold text-amber-800">From Your Document</th>
+              <th className="px-3 py-2 text-left text-xs font-semibold text-amber-800">Official Record</th>
+            </tr>
+          </thead>
+          <tbody>
+            {valid.map((f, i) => (
+              <tr key={i} className="border-b border-amber-100 last:border-b-0">
+                <td className="px-3 py-2 font-medium text-amber-900">
+                  {formatFieldName(f.field ?? "")}
+                </td>
+                <td className="px-3 py-2 font-mono text-xs">{formatCellValue(f.extracted)}</td>
+                <td className="px-3 py-2 font-mono text-xs">{formatCellValue(f.api)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+/** Full audit details in expandable row — human-readable, no raw JSON (Phase 7.9) */
+function AuditLogDetailPanel({ detail }: { detail: AuditLogDetailResponse }) {
+  const extracted = (detail.extracted_json ?? {}) as Record<string, unknown>;
+  const apiRaw = detail.api_response_json;
+  // EPC API may return array; use first row
+  const official = (Array.isArray(apiRaw) && apiRaw[0] != null
+    ? apiRaw[0]
+    : apiRaw ?? {}
+  ) as Record<string, unknown>;
+  const flags = (detail.discrepancy_flags ?? []) as Array<{
+    field?: string;
+    extracted?: unknown;
+    api?: unknown;
+  }>;
+
+  return (
+    <div className="space-y-5">
       <div>
-        <span className="font-medium text-muted-foreground">Extracted JSON</span>
-        <pre className="mt-1 max-h-40 overflow-auto rounded border border-border bg-background p-2 text-xs">
-          {JSON.stringify(detail.extracted_json, null, 2)}
-        </pre>
+        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+          Document
+        </p>
+        <p className="font-mono text-sm break-all">{detail.filename || "—"}</p>
       </div>
-      {detail.api_response_json != null && Object.keys(detail.api_response_json).length > 0 && (
-        <div>
-          <span className="font-medium text-muted-foreground">API response</span>
-          <pre className="mt-1 max-h-40 overflow-auto rounded border border-border bg-background p-2 text-xs">
-            {JSON.stringify(detail.api_response_json, null, 2)}
-          </pre>
-        </div>
+
+      {flags.length > 0 && (
+        <DiscrepancySummary flags={flags} />
+      )}
+
+      <DataSummaryTable
+        data={extracted}
+        title="From Your Document"
+      />
+
+      {official != null && Object.keys(official).length > 0 && (
+        <DataSummaryTable
+          data={official}
+          title="Official Record"
+        />
       )}
     </div>
   );

@@ -32,7 +32,7 @@ export function VerificationMetricsHeader({
       >
         <MetricItem
           icon={BarChart3}
-          label="Confidence Score"
+          label="Reliability level"
           value={isLoading ? "…" : "—"}
         />
         <MetricItem
@@ -42,7 +42,7 @@ export function VerificationMetricsHeader({
         />
         <MetricItem
           icon={AlertTriangle}
-          label="Discrepancies"
+          label="Differences found"
           value={isLoading ? "…" : "—"}
         />
       </div>
@@ -58,7 +58,7 @@ export function VerificationMetricsHeader({
     >
       <MetricItem
         icon={BarChart3}
-        label="Confidence Score"
+        label="Reliability level"
         value={confidence != null ? `${confidence}%` : "—"}
         valueClassName={
           confidence != null && confidence >= 80
@@ -76,9 +76,9 @@ export function VerificationMetricsHeader({
       />
       <MetricItem
         icon={AlertTriangle}
-        label="Discrepancies"
+        label="Differences found"
         value={String(discrepancies)}
-        valueClassName={discrepancies > 0 ? "text-destructive" : undefined}
+        valueClassName={discrepancies > 0 ? "text-amber-600" : undefined}
       />
     </div>
   );

@@ -138,7 +138,7 @@ export function SimilarOverridesPanel({
                     </span>
                     {typeof s.confidence === "number" && (
                       <span className="text-[11px] text-muted-foreground">
-                        Confidence {Math.round(s.confidence * 100)}%
+                        Reliability {Math.round(s.confidence * 100)}%
                       </span>
                     )}
                   </div>

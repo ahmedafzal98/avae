@@ -21,7 +21,7 @@ function formatTime(iso: string): string {
 function statusToAction(status: string): string {
   const map: Record<string, string> = {
     VERIFIED: "Verification completed",
-    DISCREPANCY_FLAG: "Discrepancy flagged",
+    DISCREPANCY_FLAG: "Difference flagged",
     PENDING_HUMAN_REVIEW: "Pending human review",
     AWAITING_CLIENT_REMEDIATION: "Awaiting client remediation",
     COMPLETED: "Processing completed",

@@ -1,7 +1,14 @@
 "use client";
 
-import { CheckCircle, AlertTriangle, Flag, RotateCcw } from "lucide-react";
+import { useState } from "react";
+import { CheckCircle, AlertTriangle, Flag, RotateCcw, ShieldCheck, HelpCircle } from "lucide-react";
 import type { VerificationFieldRow } from "@/lib/api";
+import {
+  getOfficialRegistryName,
+  getSourceBadgeLabel,
+  getSourceBadgeEmoji,
+  formatLiveSyncTimestamp,
+} from "@/lib/registry-labels";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -22,8 +29,12 @@ function formatValue(val: unknown): string {
 }
 
 export interface VerificationFeedPaneProps {
-  /** Batch/document ID for header */
+  /** Document reference for header (e.g. document ID) */
   batchId?: string | null;
+  /** Audit target (companies_house, epc, etc.) — used to display registry name */
+  auditTarget?: string | null;
+  /** ISO timestamp when official registry was last synced */
+  officialRecordSyncedAt?: string | null;
   rows: VerificationFieldRow[];
   isLoading?: boolean;
   error?: string | null;
@@ -44,6 +55,8 @@ export interface VerificationFeedPaneProps {
  */
 export function VerificationFeedPane({
   batchId,
+  auditTarget,
+  officialRecordSyncedAt,
   rows,
   isLoading = false,
   error = null,
@@ -56,10 +69,14 @@ export function VerificationFeedPane({
   className,
 }: VerificationFeedPaneProps) {
   const verified = rows.filter((r) => r.status === "VERIFIED").length;
-  const discrepancies = rows.filter((r) => r.status === "DISCREPANCY").length;
+  const differences = rows.filter((r) => r.status === "DISCREPANCY").length;
   const total = rows.length;
-  const confidence =
+  const reliability =
     total > 0 ? ((verified / total) * 100).toFixed(1) : null;
+
+  // Overall Status: Low / Medium / High Risk (executive-friendly)
+  const overallStatus =
+    differences === 0 ? "low" : differences <= 2 ? "medium" : "high";
 
   if (error) {
     return (
@@ -81,48 +98,76 @@ export function VerificationFeedPane({
         className
       )}
     >
-      {/* Header: Verification Summary + Batch ID + Confidence Gauge */}
+      {/* Top-Level Verification Summary (executives love this) */}
       <div className="shrink-0 border-b border-slate-200 p-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 className="text-lg font-semibold text-slate-900">
-              Verification Summary
-            </h2>
-            {batchId && (
-              <p className="mt-1 font-mono text-sm text-slate-500">
-                Batch ID: {batchId}
-              </p>
+        <h2 className="text-lg font-semibold text-slate-900">
+          Verification Summary
+        </h2>
+        {batchId && (
+          <p className="mt-1 font-mono text-sm text-slate-500">
+            Reference: {batchId}
+          </p>
+        )}
+        {isLoading ? (
+          <Skeleton className="mt-4 h-16 w-full rounded-lg" />
+        ) : total > 0 ? (
+          <div className="mt-4 flex flex-wrap items-center gap-4">
+            <span className="inline-flex items-center gap-2 text-sm text-emerald-700">
+              <CheckCircle className="size-4" strokeWidth={1.5} />
+              <strong>{verified}</strong> fields verified
+            </span>
+            {differences > 0 && (
+              <span className="inline-flex items-center gap-2 text-sm text-amber-700">
+                <AlertTriangle className="size-4" strokeWidth={1.5} />
+                <strong>{differences}</strong> difference{differences !== 1 ? "s" : ""} found
+              </span>
             )}
+            <span
+              className={cn(
+                "ml-auto rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wider",
+                overallStatus === "low" && "bg-emerald-100 text-emerald-700",
+                overallStatus === "medium" && "bg-amber-100 text-amber-700",
+                overallStatus === "high" && "bg-rose-100 text-rose-700"
+              )}
+            >
+              {overallStatus === "low" && "🟢 Low Risk"}
+              {overallStatus === "medium" && "🟡 Medium Risk"}
+              {overallStatus === "high" && "🔴 High Risk"}
+            </span>
           </div>
-          {isLoading ? (
-            <Skeleton className="h-14 w-32 rounded-lg" />
-          ) : confidence != null ? (
-            <div className="flex flex-col items-center sm:items-end">
-              <span className="text-3xl font-bold tabular-nums text-slate-900">
-                {confidence}%
-              </span>
-              <span className="text-xs font-medium uppercase tracking-wider text-slate-500">
-                Confidence
-              </span>
-            </div>
-          ) : null}
-        </div>
+        ) : null}
+        {!isLoading && reliability != null && (
+          <div className="mt-3 flex items-center gap-2">
+            <span className="text-sm font-medium text-slate-600">
+              Reliability
+            </span>
+            <span
+              className={cn(
+                "rounded-md px-2.5 py-0.5 text-sm font-bold tabular-nums",
+                Number(reliability) >= 80 && "bg-emerald-100 text-emerald-800",
+                Number(reliability) >= 50 && Number(reliability) < 80 && "bg-amber-100 text-amber-800",
+                Number(reliability) < 50 && "bg-rose-100 text-rose-800"
+              )}
+            >
+              {reliability}%
+            </span>
+          </div>
+        )}
       </div>
 
-      {/* Alert: Attention Required */}
-      {!isLoading && discrepancies > 0 && (
+      {/* Alert: Action Required when differences found */}
+      {!isLoading && differences > 0 && (
         <div
-          className="shrink-0 border-b border-slate-200 bg-rose-50/80 px-6 py-3"
+          className="shrink-0 border-b border-slate-200 bg-amber-50/80 px-6 py-3"
           role="alert"
         >
-          <p className="flex items-center gap-2 text-sm font-medium text-rose-700">
+          <p className="flex items-center gap-2 text-sm font-medium text-amber-700">
             <AlertTriangle className="size-4 shrink-0" strokeWidth={1.5} />
-            Attention Required: {discrepancies} Discrepancy
-            {discrepancies !== 1 ? "ies" : ""} found
+            Action Required: {differences} difference{differences !== 1 ? "s" : ""} found
           </p>
           {onDiscrepancyCardClick && (
-            <p className="mt-1 text-xs text-rose-600">
-              Click a discrepancy card to open resolution options.
+            <p className="mt-1 text-xs text-amber-600">
+              Click a difference to open resolution options.
             </p>
           )}
         </div>
@@ -155,6 +200,10 @@ export function VerificationFeedPane({
               <ComparisonCard
                 key={`${row.field}-${idx}`}
                 row={row}
+                registryName={getOfficialRegistryName(auditTarget ?? "")}
+                sourceBadge={getSourceBadgeLabel(auditTarget ?? "")}
+                sourceEmoji={getSourceBadgeEmoji(auditTarget ?? "")}
+                syncedAt={officialRecordSyncedAt}
                 onClick={
                   row.status === "DISCREPANCY" && onDiscrepancyCardClick
                     ? () => onDiscrepancyCardClick(row)
@@ -202,7 +251,7 @@ export function VerificationFeedPane({
             className="gap-1.5 bg-slate-900 font-medium text-white hover:bg-slate-800"
           >
             <CheckCircle className="size-4" strokeWidth={1.5} />
-            Confirm as Correct
+            Approve & Continue
           </Button>
         </div>
       </div>
@@ -210,19 +259,33 @@ export function VerificationFeedPane({
   );
 }
 
+const WHY_DIFFERENT_EXPLANATION = `This difference may be due to:
+• Different reporting period
+• Recent update not yet reflected in official records
+• Rounding or formatting differences`;
+
 function ComparisonCard({
   row,
+  registryName,
+  sourceBadge,
+  sourceEmoji,
+  syncedAt,
   onClick,
   onHighlight,
   isHighlighted,
 }: {
   row: VerificationFieldRow;
+  registryName: string;
+  sourceBadge: string;
+  sourceEmoji: string;
+  syncedAt?: string | null;
   onClick?: () => void;
   onHighlight?: (row: VerificationFieldRow | null) => void;
   isHighlighted?: boolean;
 }) {
+  const [showWhyDifferent, setShowWhyDifferent] = useState(false);
   const isMatch = row.status === "VERIFIED";
-  const isDiscrepancy = row.status === "DISCREPANCY";
+  const isDifference = row.status === "DISCREPANCY";
   const isPending = row.status === "PENDING";
   const hasPdfLocation = !!row.pdf_location;
 
@@ -246,20 +309,20 @@ function ComparisonCard({
       className={cn(
         "rounded-lg border border-slate-200 bg-white p-6 transition-colors",
         isMatch && "border-l-4 border-l-emerald-500",
-        isDiscrepancy && "border-l-4 border-l-rose-500",
+        isDifference && "border-l-4 border-l-amber-500",
         isPending && "border-l-4 border-l-slate-300",
-        (isDiscrepancy && onClick) || (onHighlight && hasPdfLocation) ? "cursor-pointer" : "",
-        (isDiscrepancy && onClick) || (onHighlight && hasPdfLocation) ? "hover:bg-slate-50/80" : "",
+        (isDifference && onClick) || (onHighlight && hasPdfLocation) ? "cursor-pointer" : "",
+        (isDifference && onClick) || (onHighlight && hasPdfLocation) ? "hover:bg-slate-50/80" : "",
         isHighlighted && "ring-2 ring-slate-400 ring-offset-2",
         onHighlight && !hasPdfLocation && "opacity-90"
       )}
       onClick={handleClick}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
-      role={(isDiscrepancy && onClick) || (onHighlight && hasPdfLocation) ? "button" : undefined}
-      tabIndex={(isDiscrepancy && onClick) || (onHighlight && hasPdfLocation) ? 0 : undefined}
+      role={(isDifference && onClick) || (onHighlight && hasPdfLocation) ? "button" : undefined}
+      tabIndex={(isDifference && onClick) || (onHighlight && hasPdfLocation) ? 0 : undefined}
       onKeyDown={
-        (isDiscrepancy && onClick) || (onHighlight && hasPdfLocation)
+        (isDifference && onClick) || (onHighlight && hasPdfLocation)
           ? (e) => {
               if (e.key === "Enter" || e.key === " ") {
                 e.preventDefault();
@@ -279,43 +342,76 @@ function ComparisonCard({
             {formatFieldName(row.field)}
           </span>
           {isMatch && (
-            <span className="inline-flex items-center gap-1 rounded bg-emerald-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-700">
+            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
               <CheckCircle className="size-3" strokeWidth={1.5} />
-              VERIFIED MATCH
+              Verified
             </span>
           )}
-          {isDiscrepancy && (
-            <span className="inline-flex items-center gap-1 rounded bg-rose-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-rose-700">
+          {isDifference && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
               <AlertTriangle className="size-3" strokeWidth={1.5} />
-              DISCREPANCY DETECTED
+              Difference Found
             </span>
           )}
           {isPending && (
-            <span className="inline-flex items-center gap-1 rounded bg-slate-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-600">
-              PENDING
+            <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
+              Needs Review
             </span>
           )}
         </div>
 
-        {/* 2-column: FOUND IN DOCUMENT vs SYSTEM RECORD */}
+        {/* 2-column: FROM YOUR DOCUMENT | Official Record (enterprise side-by-side) */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
             <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
-              Found in Document
+              From Your Document
             </p>
             <p className="font-semibold text-slate-900">
               {formatValue(row.document_value)}
             </p>
           </div>
           <div>
-            <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
-              System Record
-            </p>
+            <div className="mb-1 flex items-center gap-1.5">
+              <ShieldCheck className="size-3.5 text-emerald-600" strokeWidth={2} aria-hidden />
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                {registryName}
+              </span>
+            </div>
             <p className="font-semibold text-slate-900">
               {formatValue(row.api_value)}
             </p>
+            <p className="mt-1 text-[10px] text-slate-500" title="This data comes from official filings submitted by the organisation.">
+              {sourceEmoji} {sourceBadge}
+            </p>
+            {syncedAt && (
+              <p className="mt-0.5 text-[10px] text-slate-400">
+                Live sync: {formatLiveSyncTimestamp(syncedAt)}
+              </p>
+            )}
           </div>
         </div>
+
+        {/* "Why is this different?" — reduces anxiety when mismatch appears */}
+        {isDifference && (
+          <div className="mt-4 pt-4 border-t border-slate-100">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowWhyDifferent(!showWhyDifferent);
+              }}
+              className="inline-flex items-center gap-1.5 text-xs font-medium text-amber-700 hover:text-amber-800 hover:underline"
+            >
+              <HelpCircle className="size-3.5" strokeWidth={1.5} />
+              Why is this different?
+            </button>
+            {showWhyDifferent && (
+              <p className="mt-2 text-xs text-slate-600 leading-relaxed">
+                {WHY_DIFFERENT_EXPLANATION}
+              </p>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

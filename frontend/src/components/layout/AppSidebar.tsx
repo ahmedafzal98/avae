@@ -103,11 +103,22 @@ export function AppSidebar() {
       {/* Task 8.8: Mobile menu button — visible only on small screens */}
       <div className="fixed left-4 top-20 z-40 md:hidden">
         <DropdownMenu open={mobileOpen} onOpenChange={setMobileOpen}>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="icon-sm" aria-label="Open navigation menu">
-              <Menu className="size-5" />
-            </Button>
-          </DropdownMenuTrigger>
+          <DropdownMenuTrigger
+            render={
+              <button
+                type="button"
+                className={cn(
+                  "inline-flex size-7 shrink-0 items-center justify-center rounded-lg border border-input bg-background text-foreground hover:bg-muted hover:text-foreground",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                  "aria-expanded:bg-muted aria-expanded:text-foreground"
+                )}
+                aria-label="Open navigation menu"
+                aria-haspopup="menu"
+              >
+                <Menu className="size-5" />
+              </button>
+            }
+          />
           <DropdownMenuContent align="start" className="w-56">
             <NavLinks
               pathname={pathname}

@@ -12,15 +12,17 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import type { DocumentVerificationResponse, VerificationFieldRow } from "@/lib/api";
+import { getOfficialRegistryName } from "@/lib/registry-labels";
 import {
   hitlOverride,
   hitlManualCorrection,
   hitlRequestClientRemediation,
   getRemediationEmailDraft,
 } from "@/lib/api";
-import { Copy, Mail, Loader2 } from "lucide-react";
+import { Copy, Mail, Loader2, CheckCircle2, Pencil, Send, AlertCircle } from "lucide-react";
 import { useOfficerLevel } from "@/lib/auth";
 import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 
 export interface HITLModalProps {
   open: boolean;
@@ -198,7 +200,7 @@ export function HITLModal({
         onSuccess?.();
         handleClose();
       } catch (err) {
-        handleApiError(err, "Manual correction");
+        handleApiError(err);
       } finally {
         setLoading(false);
       }
@@ -223,211 +225,249 @@ export function HITLModal({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="sm:max-w-xl"
+        className="flex max-h-[90vh] flex-col overflow-hidden border-0 shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)] sm:max-w-xl"
         showCloseButton={true}
       >
-        <div className="relative grid gap-4">
+        <div className="relative flex min-h-0 flex-1 flex-col">
           {loading && (
             <div
-              className="absolute inset-0 z-10 flex items-center justify-center rounded-xl bg-background/80"
+              className="absolute inset-0 z-10 flex items-center justify-center rounded-xl bg-white/90 backdrop-blur-sm"
               aria-live="polite"
               aria-label="Applying action"
             >
-              <div className="flex flex-col items-center gap-3">
-                <Loader2 className="size-8 animate-spin text-muted-foreground" aria-hidden />
-                <div className="flex gap-2">
-                  <Skeleton className="h-3 w-16" />
-                  <Skeleton className="h-3 w-20" />
+              <div className="flex flex-col items-center gap-4">
+                <div className="rounded-full bg-slate-100 p-3">
+                  <Loader2 className="size-6 animate-spin text-slate-600" aria-hidden />
                 </div>
+                <p className="text-sm font-medium text-slate-700">Applying…</p>
               </div>
             </div>
           )}
-        <DialogHeader>
-          <DialogTitle className="text-destructive">
-            {buildErrorTitle(selectedRow, discrepancyRows)}
-          </DialogTitle>
+
+        <DialogHeader className="shrink-0 space-y-3 border-b border-slate-100 pb-2">
+          <div className="flex items-center gap-2">
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-600">
+              <AlertCircle className="size-4" strokeWidth={2} />
+            </span>
+            <DialogTitle className="text-base font-semibold text-slate-800">
+              {buildErrorTitle(selectedRow, discrepancyRows)}
+            </DialogTitle>
+          </div>
           {error && (
-            <div className="rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2.5 text-sm text-rose-700">
               {error}
             </div>
           )}
-          <DialogDescription className="mt-1 space-y-2">
-            {buildDiscrepancyDescription(selectedRow, discrepancyRows)}
+          <DialogDescription className="text-sm text-slate-600 leading-relaxed">
+            {buildDiscrepancyDescription(selectedRow, discrepancyRows, getOfficialRegistryName(verification?.audit_target ?? ""))}
           </DialogDescription>
         </DialogHeader>
 
-        {/* Task 6.3: Override | 6.4: Manual Correction | 6.5: Request Client Remediation */}
-        <div className="space-y-4 py-2">
-          {/* Override (Task 6.3) */}
-          <div className="space-y-2">
-            <label className="flex cursor-pointer items-start gap-3">
-              <input
-                type="radio"
-                name="hitl-action"
-                checked={action === "override"}
-                onChange={() => setAction("override")}
-                className="mt-1"
-              />
-              <div>
-                <span className="font-medium">Override</span>
-                <p className="text-sm text-muted-foreground">
-                  Force verification based on internal evidence. Officer takes responsibility.
-                </p>
-              </div>
-            </label>
-            {action === "override" && (
-              <div className="ml-6 space-y-1">
-                <label htmlFor="hitl-justification" className="text-sm font-medium">
-                  Justification Ledger <span className="text-destructive">*</span>
-                </label>
-                <textarea
-                  id="hitl-justification"
-                  value={justification}
-                  onChange={(e) => setJustification(e.target.value)}
-                  placeholder="Explain the basis for this override (required, max 500 characters)"
-                  maxLength={500}
-                  rows={3}
-                  className="w-full rounded-lg border border-input bg-transparent px-2.5 py-2 text-sm outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-                />
-                <p className="text-xs text-muted-foreground">
-                  {justification.length}/500 characters
-                </p>
-              </div>
-            )}
-          </div>
+        {/* Action options — card-style selectable, scrollable */}
+        <div className="min-h-0 flex-1 overflow-y-auto py-4">
+        <div className="space-y-3">
+          <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+            Choose resolution
+          </p>
 
-          {/* Manual Correction (Task 6.4) */}
-          <div className="space-y-2">
-            <label className="flex cursor-pointer items-start gap-3">
-              <input
-                type="radio"
-                name="hitl-action"
-                checked={action === "manual"}
-                onChange={() => {
-                  setAction("manual");
-                  const initial: Record<string, string> = {};
-                  for (const r of rowsToCorrect) {
-                    const val = r.document_value;
-                    initial[r.field] =
-                      val != null && val !== "" ? String(val) : "";
-                  }
-                  setCorrections(initial);
-                }}
-                className="mt-1"
-              />
-              <div>
-                <span className="font-medium">Manual Correction</span>
-                <p className="text-sm text-muted-foreground">
-                  Enter the corrected value; submit re-runs verification.
-                </p>
-              </div>
-            </label>
-            {action === "manual" && rowsToCorrect.length > 0 && (
-              <div className="ml-6 space-y-3">
-                {rowsToCorrect.map((r) => (
-                  <div key={r.field} className="space-y-1">
-                    <label htmlFor={`hitl-correction-${r.field}`} className="text-sm font-medium">
-                      {formatFieldName(r.field)}
-                    </label>
-                    <input
-                      id={`hitl-correction-${r.field}`}
-                      type="text"
-                      value={corrections[r.field] ?? ""}
-                      onChange={(e) =>
-                        setCorrections((prev) => ({ ...prev, [r.field]: e.target.value }))
-                      }
-                      placeholder={`Corrected value (API: ${formatValue(r.api_value)})`}
-                      className="w-full rounded-lg border border-input bg-transparent px-2.5 py-2 text-sm outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-                    />
-                  </div>
-                ))}
-              </div>
+          {/* Confirm Correct Value */}
+          <label
+            className={cn(
+              "flex cursor-pointer gap-4 rounded-xl border-2 p-4 transition-all",
+              action === "override"
+                ? "border-emerald-500 bg-emerald-50/50 shadow-sm"
+                : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/50"
             )}
-          </div>
-
-          {/* Request Client Remediation (Task 6.5) */}
-          <div className="space-y-2">
-            <label className="flex cursor-pointer items-start gap-3">
-              <input
-                type="radio"
-                name="hitl-action"
-                checked={action === "remediation"}
-                onChange={() => {
-                  setAction("remediation");
-                  setEmailDraft(null);
-                }}
-                className="mt-1"
+          >
+            <input
+              type="radio"
+              name="hitl-action"
+              checked={action === "override"}
+              onChange={() => setAction("override")}
+              className="sr-only"
+            />
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600">
+              <CheckCircle2 className="size-5" strokeWidth={2} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <span className="font-semibold text-slate-800">Confirm Correct Value</span>
+              <p className="mt-0.5 text-sm text-slate-500">
+                Document value is correct. You take responsibility.
+              </p>
+            </div>
+          </label>
+          {action === "override" && (
+            <div className="ml-14 space-y-2 rounded-lg bg-white p-4 ring-1 ring-slate-200">
+              <label htmlFor="hitl-justification" className="text-sm font-medium text-slate-700">
+                Justification <span className="text-rose-500">*</span>
+              </label>
+              <textarea
+                id="hitl-justification"
+                value={justification}
+                onChange={(e) => setJustification(e.target.value)}
+                placeholder="Explain the basis for this decision (required for audit)"
+                maxLength={500}
+                rows={3}
+                className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2.5 text-sm placeholder:text-slate-400 focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
               />
-              <div>
-                <span className="font-medium">Request Client Remediation</span>
-                <p className="text-sm text-muted-foreground">
-                  Mark document for client fix. Generate templated email to notify the client.
-                </p>
-              </div>
-            </label>
-            {action === "remediation" && (
-              <div className="ml-6 space-y-3">
-                <div className="space-y-1">
-                  <label htmlFor="hitl-remediation-message" className="text-sm font-medium">
-                    Message to client (optional)
+              <p className="text-xs text-slate-400">{justification.length}/500</p>
+            </div>
+          )}
+
+          {/* Enter Correct Value */}
+          <label
+            className={cn(
+              "flex cursor-pointer gap-4 rounded-xl border-2 p-4 transition-all",
+              action === "manual"
+                ? "border-emerald-500 bg-emerald-50/50 shadow-sm"
+                : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/50"
+            )}
+          >
+            <input
+              type="radio"
+              name="hitl-action"
+              checked={action === "manual"}
+              onChange={() => {
+                setAction("manual");
+                const initial: Record<string, string> = {};
+                for (const r of rowsToCorrect) {
+                  const val = r.document_value;
+                  initial[r.field] =
+                    val != null && val !== "" ? String(val) : "";
+                }
+                setCorrections(initial);
+              }}
+              className="sr-only"
+            />
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-blue-100 text-blue-600">
+              <Pencil className="size-5" strokeWidth={2} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <span className="font-semibold text-slate-800">Enter Correct Value</span>
+              <p className="mt-0.5 text-sm text-slate-500">
+                Update the value; we will re-check against the official record.
+              </p>
+            </div>
+          </label>
+          {action === "manual" && rowsToCorrect.length > 0 && (
+            <div className="ml-14 space-y-3 rounded-lg bg-white p-4 ring-1 ring-slate-200">
+              {rowsToCorrect.map((r) => (
+                <div key={r.field} className="space-y-1.5">
+                  <label htmlFor={`hitl-correction-${r.field}`} className="text-sm font-medium text-slate-700">
+                    {formatFieldName(r.field)}
                   </label>
-                  <textarea
-                    id="hitl-remediation-message"
-                    value={remediationMessage}
-                    onChange={(e) => setRemediationMessage(e.target.value)}
-                    placeholder="Add instructions or context for the client…"
-                    rows={2}
-                    className="w-full rounded-lg border border-input bg-transparent px-2.5 py-2 text-sm outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                  <input
+                    id={`hitl-correction-${r.field}`}
+                    type="text"
+                    value={corrections[r.field] ?? ""}
+                    onChange={(e) =>
+                      setCorrections((prev) => ({ ...prev, [r.field]: e.target.value }))
+                    }
+                    placeholder={`Official record: ${formatValue(r.api_value)}`}
+                    className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2.5 text-sm placeholder:text-slate-400 focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
                   />
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleGenerateEmailDraft}
-                  disabled={emailDraftLoading}
-                  className="gap-1.5"
-                >
-                  {emailDraftLoading ? (
-                    <Loader2 className="size-3.5 animate-spin" />
-                  ) : (
-                    <Mail className="size-3.5" />
-                  )}
-                  Generate Email Draft
-                </Button>
-                {emailDraft && (
-                  <div className="space-y-2 rounded-md border border-border bg-muted/30 p-3">
-                    <div>
-                      <span className="text-xs font-medium text-muted-foreground">Subject:</span>
-                      <p className="text-sm">{emailDraft.subject}</p>
-                    </div>
-                    <div>
-                      <span className="text-xs font-medium text-muted-foreground">Body:</span>
-                      <pre className="mt-1 max-h-48 overflow-auto whitespace-pre-wrap text-xs" role="region" aria-label="Email body">
-                        {emailDraft.body}
-                      </pre>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={handleCopyToClipboard}
-                      className="gap-1.5"
-                    >
-                      <Copy className="size-3.5" />
-                      {copySuccess ? "Copied!" : "Copy to clipboard"}
-                    </Button>
-                  </div>
-                )}
-              </div>
+              ))}
+            </div>
+          )}
+
+          {/* Request Client Remediation */}
+          <label
+            className={cn(
+              "flex cursor-pointer gap-4 rounded-xl border-2 p-4 transition-all",
+              action === "remediation"
+                ? "border-emerald-500 bg-emerald-50/50 shadow-sm"
+                : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/50"
             )}
-          </div>
+          >
+            <input
+              type="radio"
+              name="hitl-action"
+              checked={action === "remediation"}
+              onChange={() => {
+                setAction("remediation");
+                setEmailDraft(null);
+              }}
+              className="sr-only"
+            />
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-600">
+              <Send className="size-5" strokeWidth={2} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <span className="font-semibold text-slate-800">Request Client Remediation</span>
+              <p className="mt-0.5 text-sm text-slate-500">
+                Ask the client to upload a corrected document.
+              </p>
+            </div>
+          </label>
+          {action === "remediation" && (
+            <div className="ml-14 space-y-3 rounded-lg bg-white p-4 ring-1 ring-slate-200">
+              <div className="space-y-1.5">
+                <label htmlFor="hitl-remediation-message" className="text-sm font-medium text-slate-700">
+                  Message to client (optional)
+                </label>
+                <textarea
+                  id="hitl-remediation-message"
+                  value={remediationMessage}
+                  onChange={(e) => setRemediationMessage(e.target.value)}
+                  placeholder="Add instructions or context…"
+                  rows={2}
+                  className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2.5 text-sm placeholder:text-slate-400 focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                />
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleGenerateEmailDraft}
+                disabled={emailDraftLoading}
+                className="gap-2 border-slate-200 font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-900"
+              >
+                {emailDraftLoading ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <Mail className="size-4" />
+                )}
+                Generate Email Draft
+              </Button>
+              {emailDraft && (
+                <div className="space-y-2 rounded-lg border border-slate-200 bg-slate-50/30 p-4">
+                  <div>
+                    <span className="text-xs font-medium text-slate-500">Subject</span>
+                    <p className="mt-0.5 text-sm font-medium text-slate-800">{emailDraft.subject}</p>
+                  </div>
+                  <div>
+                    <span className="text-xs font-medium text-slate-500">Body</span>
+                    <pre className="mt-1 max-h-40 overflow-auto whitespace-pre-wrap rounded bg-white p-3 text-xs text-slate-600 ring-1 ring-slate-200" role="region" aria-label="Email body">
+                      {emailDraft.body}
+                    </pre>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleCopyToClipboard}
+                    className="gap-2 text-slate-600 hover:bg-slate-100 hover:text-slate-800"
+                  >
+                    <Copy className="size-4" />
+                    {copySuccess ? "Copied!" : "Copy to clipboard"}
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
         </div>
 
-        <DialogFooter className="flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="order-last text-xs text-muted-foreground sm:order-first">
-            AUTHORIZED AS {officerLevel}
+        <DialogFooter className="-mx-4 -mb-4 shrink-0 flex-col-reverse gap-3 rounded-b-xl border-t border-slate-100 bg-slate-50/50 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-xs font-medium text-slate-400">
+            Authorized as {officerLevel}
           </p>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={handleClose} disabled={loading}>
+            <Button
+              variant="outline"
+              onClick={handleClose}
+              disabled={loading}
+              className="border-slate-200 font-medium text-slate-600 hover:bg-white hover:text-slate-800"
+            >
               Cancel
             </Button>
             <Button
@@ -435,15 +475,16 @@ export function HITLModal({
               disabled={
                 (!canConfirmOverride && !canConfirmManual && !canConfirmRemediation) || loading
               }
+              className="font-semibold bg-emerald-600 text-white hover:bg-emerald-700"
             >
               {loading
                 ? "Applying…"
                 : action === "manual"
-                  ? "Submit correction"
+                  ? "Approve & Continue"
                   : action === "remediation"
                     ? "Send remediation request"
                     : action === "override"
-                      ? "Confirm override"
+                      ? "Approve & Continue"
                       : "Choose an action"}
             </Button>
           </div>
@@ -469,12 +510,12 @@ function formatValue(val: unknown): string {
   return String(val);
 }
 
-/** Task 6.2: Error title e.g. "VALIDATION ERROR - CRN 0842" */
+/** Task 6.2: Error title — Action Required (authority-based, not technical) */
 function buildErrorTitle(
   selectedRow: VerificationFieldRow | null | undefined,
   discrepancyRows: VerificationFieldRow[]
 ): string {
-  const base = "VALIDATION ERROR";
+  const base = "Action Required";
   if (selectedRow) {
     const identifier = getFieldIdentifier(selectedRow.field, selectedRow.document_value);
     return identifier ? `${base} - ${identifier}` : `${base} - ${formatFieldName(selectedRow.field)}`;
@@ -498,43 +539,51 @@ function getFieldIdentifier(field: string, value: unknown): string | null {
   return str;
 }
 
-/** Task 6.2: Discrepancy description */
+/** Business-friendly discrepancy description (plain English, no API jargon) */
 function buildDiscrepancyDescription(
   selectedRow: VerificationFieldRow | null | undefined,
-  discrepancyRows: VerificationFieldRow[]
+  discrepancyRows: VerificationFieldRow[],
+  registryName: string
 ): React.ReactNode {
+  const genericReason = `The value on the submitted document does not match the active registration at ${registryName}.`;
   if (selectedRow) {
     return (
-      <>
-        <p>
-          <strong>{formatFieldName(selectedRow.field)}</strong> does not match the external API record.
-        </p>
-        <div className="rounded-md border border-border bg-muted/30 p-3 font-mono text-xs">
+      <div className="space-y-3">
+        <p className="text-slate-600">{genericReason}</p>
+        <div className="grid grid-cols-2 gap-3 rounded-lg bg-slate-50 p-3 ring-1 ring-slate-200">
           <div>
-            <span className="text-muted-foreground">Document: </span>
-            {formatValue(selectedRow.document_value)}
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">From Your Document</p>
+            <p className="mt-1 font-mono text-sm font-medium text-slate-800">{formatValue(selectedRow.document_value)}</p>
           </div>
-          <div className="mt-1">
-            <span className="text-muted-foreground">API: </span>
-            {formatValue(selectedRow.api_value)}
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Official Record</p>
+            <p className="mt-1 font-mono text-sm font-medium text-slate-800">{formatValue(selectedRow.api_value)}</p>
           </div>
         </div>
-      </>
+      </div>
     );
   }
   if (discrepancyRows.length > 0) {
     return (
-      <>
-        <p>{discrepancyRows.length} field(s) require resolution:</p>
-        <ul className="list-inside list-disc space-y-1">
+      <div className="space-y-3">
+        <p className="text-slate-600">
+          {discrepancyRows.length} field{discrepancyRows.length !== 1 ? "s" : ""} require resolution:
+        </p>
+        <div className="space-y-2">
           {discrepancyRows.map((r) => (
-            <li key={r.field}>
-              <strong>{formatFieldName(r.field)}</strong>: {formatValue(r.document_value)} vs {formatValue(r.api_value)}
-            </li>
+            <div
+              key={r.field}
+              className="flex items-center justify-between gap-3 rounded-lg bg-slate-50 px-3 py-2 ring-1 ring-slate-200"
+            >
+              <span className="text-sm font-medium text-slate-700">{formatFieldName(r.field)}</span>
+              <span className="font-mono text-xs text-slate-500">
+                {formatValue(r.document_value)} → {formatValue(r.api_value)}
+              </span>
+            </div>
           ))}
-        </ul>
-      </>
+        </div>
+      </div>
     );
   }
-  return <p>No discrepancies to resolve.</p>;
+  return <p className="text-slate-600">No discrepancies to resolve.</p>;
 }

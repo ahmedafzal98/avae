@@ -219,6 +219,8 @@ export interface DocumentVerificationResponse {
   verification_status: string;
   audit_target: string;
   rows: VerificationFieldRow[];
+  /** ISO timestamp when official registry was last synced (for "Live sync" display) */
+  official_record_synced_at?: string | null;
 }
 
 /**

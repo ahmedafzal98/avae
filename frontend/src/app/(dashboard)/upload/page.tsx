@@ -7,7 +7,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { FileDropzone } from "@/components/upload/FileDropzone";
 import { AuditTargetSelect } from "@/components/upload/AuditTargetSelect";
 import { LiveEngineStatus } from "@/components/upload/LiveEngineStatus";
-import { InstancePerformance } from "@/components/upload/InstancePerformance";
 import { useUpload } from "@/hooks/useUpload";
 import type { AuditTarget } from "@/types/audit-target";
 import { toastError } from "@/lib/toast";
@@ -114,10 +113,9 @@ function UploadPageContent() {
           )}
         </div>
 
-        {/* Right: Live Engine Status + Instance Performance */}
+        {/* Right: Document Status */}
         <div className="flex flex-col gap-4">
           <LiveEngineStatus taskIds={taskIds} />
-          <InstancePerformance />
         </div>
       </div>
 
@@ -132,9 +130,41 @@ function UploadPageContent() {
   );
 }
 
+/** Shell shown immediately while useSearchParams resolves — screen opens without waiting. */
+function UploadPageShell() {
+  return (
+    <div className="flex flex-col gap-6 p-6">
+      <div>
+        <h1 className="text-heading-lg tracking-tight text-foreground">
+          Ingestion Terminal
+        </h1>
+        <p className="mt-1 text-body text-muted-foreground">
+          Upload regulatory documentation for automated extraction and cross-reference verification against statutory databases.
+        </p>
+      </div>
+      <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
+        <div className="flex flex-col gap-6">
+          <div className="rounded-lg border border-[#e2e8f0] bg-white p-6">
+            <div className="flex min-h-[160px] flex-col items-center justify-center rounded-md border-2 border-dashed border-[#e2e8f0] bg-[#f8fafc]">
+              <p className="text-body text-muted-foreground">Drop files here or click to browse</p>
+            </div>
+          </div>
+          <div className="h-[140px] max-w-sm animate-pulse rounded-lg border border-[#e2e8f0] bg-muted/30" />
+        </div>
+        <div className="flex flex-col gap-4">
+          <div className="rounded-lg border border-[#e2e8f0] bg-white p-4">
+            <p className="text-sm text-muted-foreground">Document Status</p>
+            <p className="mt-2 text-xs text-muted-foreground">No uploads in progress</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function UploadPage() {
   return (
-    <Suspense fallback={<div className="p-6">Loading…</div>}>
+    <Suspense fallback={<UploadPageShell />}>
       <UploadPageContent />
     </Suspense>
   );

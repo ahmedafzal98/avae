@@ -34,8 +34,8 @@ export function VerificationAnalysisPane({
           Verification Analysis
         </h2>
         {hasDiscrepancy && (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-[#dc2626]/15 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-[#dc2626]">
-            Discrepancy Detected
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-2.5 py-1 text-[10px] font-semibold text-amber-700">
+            Difference Found
           </span>
         )}
       </div>

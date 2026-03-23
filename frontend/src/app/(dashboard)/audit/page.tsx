@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   Select,
@@ -337,9 +337,5 @@ function AuditLogContent() {
 }
 
 export default function AuditLogPage() {
-  return (
-    <Suspense fallback={<div className="p-6">Loading…</div>}>
-      <AuditLogContent />
-    </Suspense>
-  );
+  return <AuditLogContent />;
 }

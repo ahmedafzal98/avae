@@ -16,7 +16,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
-import { CheckCircle, AlertTriangle, Clock } from "lucide-react";
+import { CheckCircle, AlertTriangle, Clock, ShieldCheck } from "lucide-react";
 import type { VerificationFieldRow } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
@@ -32,7 +32,7 @@ const columns: ColumnDef<VerificationFieldRow, unknown>[] = [
     ),
   }),
   columnHelper.accessor("document_value", {
-    header: "DOCUMENT VALUE",
+    header: "FROM YOUR DOCUMENT",
     cell: ({ getValue }) => (
       <span className="font-mono text-sm text-[#0f172a]">
         {formatValue(getValue())}
@@ -40,7 +40,12 @@ const columns: ColumnDef<VerificationFieldRow, unknown>[] = [
     ),
   }),
   columnHelper.accessor("api_value", {
-    header: "API VALUE",
+    header: () => (
+      <span className="inline-flex items-center gap-1.5">
+        <ShieldCheck className="size-3.5 text-emerald-600" strokeWidth={2} aria-hidden />
+        OFFICIAL RECORD
+      </span>
+    ),
     cell: ({ getValue }) => (
       <span className="font-mono text-sm text-[#0f172a]">
         {formatValue(getValue())}
@@ -53,24 +58,24 @@ const columns: ColumnDef<VerificationFieldRow, unknown>[] = [
       const status = String(getValue() ?? "PENDING");
       if (status === "VERIFIED") {
         return (
-          <span className="inline-flex items-center gap-1.5 text-[#059669]">
-            <CheckCircle className="size-4" strokeWidth={1.5} aria-hidden />
-            <span className="text-sm font-medium">Verified</span>
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-2 py-0.5 text-[#059669]">
+            <CheckCircle className="size-3.5" strokeWidth={1.5} aria-hidden />
+            <span className="text-xs font-medium">Verified</span>
           </span>
         );
       }
       if (status === "DISCREPANCY") {
         return (
-          <span className="inline-flex items-center gap-1.5 text-[#dc2626]">
-            <AlertTriangle className="size-4" strokeWidth={1.5} aria-hidden />
-            <span className="text-sm font-medium">Discrepancy</span>
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-2 py-0.5 text-amber-700">
+            <AlertTriangle className="size-3.5" strokeWidth={1.5} aria-hidden />
+            <span className="text-xs font-medium">Difference Found</span>
           </span>
         );
       }
       return (
-        <span className="inline-flex items-center gap-1.5 text-[#64748b]">
-          <Clock className="size-4" strokeWidth={1.5} aria-hidden />
-          <span className="text-sm font-medium">Pending</span>
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2 py-0.5 text-[#64748b]">
+          <Clock className="size-3.5" strokeWidth={1.5} aria-hidden />
+          <span className="text-xs font-medium">Needs Review</span>
         </span>
       );
     },
@@ -149,10 +154,10 @@ export function VerificationTable({
                 Field Name
               </TableHead>
               <TableHead className="h-9 px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-[#64748b]">
-                Document Value
+                From Your Document
               </TableHead>
               <TableHead className="h-9 px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-[#64748b]">
-                API Value
+                Official Record
               </TableHead>
               <TableHead className="h-9 px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-[#64748b]">
                 Status
@@ -238,7 +243,7 @@ export function VerificationTable({
                 }
                 aria-label={
                   isClickable
-                    ? `Discrepancy: ${fieldName}. Click to resolve.`
+                    ? `Difference found: ${fieldName}. Click to resolve.`
                     : undefined
                 }
               >

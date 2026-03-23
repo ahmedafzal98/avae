@@ -100,7 +100,7 @@ export function VerificationQueueTable() {
         </p>
       ) : checkpoints.length === 0 ? (
         <p className="mt-4 text-sm text-muted-foreground">
-          No documents awaiting review. Upload a Companies House document to get started.
+          No documents awaiting review. Upload a document to get started.
         </p>
       ) : (
         <Table>

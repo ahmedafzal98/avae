@@ -1,40 +1,28 @@
 "use client";
 
+import Link from "next/link";
 import { useTaskStatuses } from "@/hooks/useTaskStatus";
-import { BarChart3, CheckCircle2, Loader2 } from "lucide-react";
+import { BarChart3, CheckCircle2, Loader2, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const STAGES = [
-  {
-    key: "extracting",
-    label: "Extracting",
-    description: "Parsing document structure and OCR text recognition...",
-  },
-  {
-    key: "querying",
-    label: "Querying Databases",
-    description: "Cross-referencing legal identifiers against HM Land Registry.",
-  },
-  {
-    key: "verifying",
-    label: "Verifying",
-    description: "Final validity check and discrepancy report generation.",
-  },
+const PROCESSING_MESSAGES = [
+  "Reading your document…",
+  "Checking against official records…",
+  "Preparing verification…",
 ] as const;
 
-function getActiveStage(status: string, progress: number): number {
-  if (status === "FAILED" || status === "EXPIRED") return 0;
-  if (
-    status === "COMPLETED" ||
-    status === "PENDING_HUMAN_REVIEW" ||
-    status === "AWAITING_CLIENT_REMEDIATION"
-  )
-    return 3;
-  if (status === "PENDING") return 0;
-  if (progress < 25) return 0;
-  if (progress < 50) return 1;
-  if (progress < 75) return 2;
-  return 3;
+function getProcessingMessage(progress: number): string {
+  if (progress < 33) return PROCESSING_MESSAGES[0];
+  if (progress < 66) return PROCESSING_MESSAGES[1];
+  return PROCESSING_MESSAGES[2];
+}
+
+function isComplete(status: string): boolean {
+  return [
+    "COMPLETED",
+    "PENDING_HUMAN_REVIEW",
+    "AWAITING_CLIENT_REMEDIATION",
+  ].includes(status);
 }
 
 export interface LiveEngineStatusProps {
@@ -44,37 +32,32 @@ export interface LiveEngineStatusProps {
 
 export function LiveEngineStatus({ taskIds, className }: LiveEngineStatusProps) {
   const queries = useTaskStatuses(taskIds);
-
   const hasTasks = taskIds.length > 0;
   const firstTask = queries[0];
-  const { data, isError, isLoading } = firstTask ?? {};
+  const { data } = firstTask ?? {};
   const status = data?.status ?? "PENDING";
   const progress = data?.progress ?? 0;
-  const activeStage = getActiveStage(status, progress);
-  const isComplete =
-    activeStage >= 3 ||
-    status === "COMPLETED" ||
-    status === "PENDING_HUMAN_REVIEW" ||
-    status === "AWAITING_CLIENT_REMEDIATION";
-  const showProgress =
-    activeStage < 3 && (status === "PENDING" || status === "PROCESSING");
+  const documentId = taskIds[0];
+  const complete = isComplete(status);
+  const processing =
+    status === "PENDING" || status === "PROCESSING";
 
   if (!hasTasks) {
     return (
       <div
         className={cn(
-          "rounded-lg border border-[#e2e8f0] bg-white p-4",
+          "rounded-lg border border-[#e2e8f0] bg-white p-5",
           className
         )}
       >
         <div className="flex items-center gap-2">
           <BarChart3 className="size-4 text-[#64748b]" />
           <h3 className="text-sm font-semibold text-[#0f172a]">
-            Live Engine Status
+            Document Status
           </h3>
         </div>
-        <p className="mt-2 text-xs text-[#64748b]">
-          Upload files to see processing status
+        <p className="mt-2 text-sm text-[#64748b]">
+          Upload a document to see its verification status here.
         </p>
       </div>
     );
@@ -83,118 +66,74 @@ export function LiveEngineStatus({ taskIds, className }: LiveEngineStatusProps) 
   return (
     <div
       className={cn(
-        "rounded-lg border border-[#e2e8f0] bg-white p-4",
+        "rounded-lg border border-[#e2e8f0] bg-white p-5",
         className
       )}
     >
       <div className="flex items-center gap-2">
         <BarChart3 className="size-4 text-[#64748b]" />
         <h3 className="text-sm font-semibold text-[#0f172a]">
-          Live Engine Status
+          Document Status
         </h3>
       </div>
 
-      {/* Vertical stepper */}
-      <div className="relative mt-4">
-        {STAGES.map((stage, i) => {
-          const isActive = activeStage === i;
-          const isPast = activeStage > i;
-          const isPending = !isActive && !isPast;
-          const showStageProgress = isActive && showProgress;
-
-          return (
-            <div
-              key={stage.key}
-              className="relative flex gap-3 pb-6 last:pb-0"
-            >
-              {/* Step indicator + connector line */}
-              <div className="relative flex flex-col items-center">
-                <div
-                  className={cn(
-                    "flex size-6 shrink-0 items-center justify-center rounded-full border-2 transition-colors",
-                    isPast && "border-[#059669] bg-[#059669]",
-                    isActive && "border-[#0f172a] bg-[#0f172a]",
-                    isPending && "border-[#94a3b8] bg-white"
-                  )}
-                >
-                  {isActive && showStageProgress ? (
-                    <Loader2 className="size-3.5 animate-spin text-white" />
-                  ) : isPast ? (
-                    <CheckCircle2 className="size-3.5 text-white" />
-                  ) : isActive ? (
-                    <div className="size-2 rounded-full bg-white" />
-                  ) : null}
-                </div>
-                {i < STAGES.length - 1 && (
-                  <div
-                    className={cn(
-                      "absolute left-1/2 top-7 h-6 w-px -translate-x-px",
-                      isPast ? "bg-[#059669]" : "bg-[#e2e8f0]"
-                    )}
-                  />
-                )}
-              </div>
-
-              {/* Step content */}
-              <div className="min-w-0 flex-1 pt-0.5">
-                <p
-                  className={cn(
-                    "text-sm font-medium",
-                    isActive || isPast
-                      ? "text-[#0f172a]"
-                      : "text-[#94a3b8]"
-                  )}
-                >
-                  {stage.label}
-                </p>
-                <p
-                  className={cn(
-                    "mt-0.5 text-xs",
-                    isActive || isPast
-                      ? "text-[#64748b]"
-                      : "text-[#94a3b8]"
-                  )}
-                >
-                  {stage.description}
-                </p>
-                {showStageProgress && (
-                  <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-[#e2e8f0]">
-                    <div
-                      className="h-full rounded-full bg-[#0f172a] transition-all duration-300"
-                      style={{
-                        width: `${Math.min(
-                          100,
-                          ((progress - activeStage * 25) / 25) * 100
-                        )}%`,
-                      }}
-                    />
-                  </div>
-                )}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Success card */}
-      {hasTasks && (
-        <div className="mt-4 rounded-lg border border-[#059669]/30 bg-[#ecfdf5] p-3">
-          <div className="flex items-start gap-2">
-            <CheckCircle2
-              className="mt-0.5 size-4 shrink-0 text-[#059669]"
-              aria-hidden
-            />
-            <div>
-              <p className="text-sm font-semibold text-[#047857]">
-                {isComplete ? "Upload Complete" : "Queued for Processing"}
-              </p>
-              <p className="mt-0.5 text-xs text-[#047857]/90">
-                {isComplete
-                  ? "Verification complete. Review in Dashboard."
-                  : "Estimated completion: 14:02 GMT"}
-              </p>
+      {processing && (
+        <div className="mt-4 flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50/50 p-4">
+          <Loader2 className="size-5 shrink-0 animate-spin text-slate-500" />
+          <div>
+            <p className="text-sm font-medium text-slate-800">
+              {getProcessingMessage(progress)}
+            </p>
+            <p className="mt-0.5 text-xs text-slate-500">
+              This usually takes a minute or two.
+            </p>
+            <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-slate-200">
+              <div
+                className="h-full rounded-full bg-slate-600 transition-all duration-500"
+                style={{ width: `${Math.min(100, progress)}%` }}
+              />
             </div>
           </div>
+        </div>
+      )}
+
+      {complete && documentId && (
+        <div className="mt-4 overflow-hidden rounded-lg border border-emerald-200 bg-emerald-50/80">
+          <div className="flex items-start gap-3 p-4">
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-emerald-100">
+              <CheckCircle2 className="size-5 text-emerald-600" strokeWidth={2} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold text-emerald-900">
+                Verification complete
+              </p>
+              <p className="mt-1 text-xs text-emerald-700">
+                Your document has been checked against official records. Review any differences and approve to continue.
+              </p>
+              <Link
+                href={`/hitl?document_id=${documentId}`}
+                className="mt-3 inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3.5 py-2 text-sm font-semibold text-white transition-colors hover:bg-emerald-700"
+              >
+                Review Document
+                <ArrowRight className="size-4" strokeWidth={2} />
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {!processing && !complete && status !== "PENDING" && (
+        <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50/50 p-4">
+          <p className="text-sm font-medium text-amber-800">
+            {status === "FAILED" || status === "EXPIRED"
+              ? "Processing did not complete"
+              : "Waiting for processing…"}
+          </p>
+          <p className="mt-1 text-xs text-amber-700">
+            {status === "FAILED" || status === "EXPIRED"
+              ? "You may need to upload again."
+              : "Your document is in the queue."}
+          </p>
         </div>
       )}
     </div>

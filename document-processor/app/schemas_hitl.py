@@ -167,3 +167,7 @@ class DocumentVerificationResponse(BaseModel):
         default_factory=list,
         description="Field-by-field comparison for VerificationTable",
     )
+    official_record_synced_at: str | None = Field(
+        None,
+        description="ISO timestamp when official registry data was last synced (for Live sync display)",
+    )

@@ -1124,11 +1124,14 @@ async def get_document_verification(document_id: int, db: AsyncSession = Depends
                 else:
                     logger.debug("pdf_location not found for %r (value=%r)", r.get("field"), doc_val)
 
+    synced_at = audit.created_at.isoformat() if audit.created_at else None
+
     return DocumentVerificationResponse(
         document_id=document_id,
         verification_status=status,
         audit_target=audit_target,
         rows=[VerificationFieldRow(**r) for r in rows],
+        official_record_synced_at=synced_at,
     )
 
 
