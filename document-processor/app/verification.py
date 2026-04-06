@@ -309,8 +309,8 @@ def verify_extraction(
             )
 
     if api_response_json is None:
-        # For financial: no verification source (e.g. non-US, Pakistan PSX, UK) — extraction still valid
-        if audit_target == AuditTarget.FINANCIAL:
+        # No external registry: financial docs, or multimodal vision_poc POC
+        if audit_target in (AuditTarget.FINANCIAL, AuditTarget.VISION_POC):
             return VerificationResult(
                 status=EXTRACTED,
                 discrepancy_flags=[],

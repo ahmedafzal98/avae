@@ -44,7 +44,8 @@ class RAGService:
             chunk_size=1024,
             chunk_overlap=200,
             paragraph_separator="\n\n",
-            secondary_chunking_regex="[^,.;。？！]+[,.;。？！]?",
+            # Includes Arabic question mark ؟ and semicolon ؛
+            secondary_chunking_regex="[^,.;。？！؟؛]+[,.;。？！؟؛]?",
         )
 
         # MarkdownNodeParser — no LLM required, works for both native and scanned PDFs.

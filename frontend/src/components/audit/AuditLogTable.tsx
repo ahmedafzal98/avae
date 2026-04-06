@@ -49,6 +49,7 @@ function formatAuditTarget(target: string): string {
   if (target === "hm_land_registry") return "Land Registry";
   if (target === "epc") return "EPC";
   if (target === "financial") return "Financial";
+  if (target === "vision_poc") return "Vision POC";
   return target;
 }
 
@@ -76,9 +77,11 @@ function DataSummaryTable({
   title: string;
   className?: string;
 }) {
-  const entries = Object.entries(data ?? {}).filter(
-    ([, v]) => v !== null && v !== undefined && v !== ""
-  );
+  const entries = Object.entries(data ?? {}).filter(([, v]) => {
+    if (v === null || v === undefined || v === "") return false;
+    if (typeof v === "string" && !v.trim()) return false;
+    return true;
+  });
   if (entries.length === 0) return null;
   return (
     <div className={className}>

@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   Select,
@@ -12,7 +13,11 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/verification/StatusBadge";
-import { getHitlCheckpoints, type CheckpointListItem } from "@/lib/api";
+import {
+  getHitlCheckpoints,
+  listDocuments,
+  type CheckpointListItem,
+} from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ChevronLeft, ChevronRight, FileText } from "lucide-react";
@@ -29,6 +34,8 @@ const AUDIT_TARGET_OPTIONS = [
   { value: "epc", label: "EPC" },
   { value: "companies_house", label: "Companies House" },
   { value: "hm_land_registry", label: "Land Registry" },
+  { value: "financial", label: "Financial" },
+  { value: "vision_poc", label: "Vision POC" },
 ];
 
 export interface CheckpointListProps {
@@ -61,6 +68,17 @@ export function CheckpointList({ className }: CheckpointListProps) {
       }),
   });
 
+  /** Vision POC / EXTRACTED paths finish as COMPLETED — they never appear in the HITL queue */
+  const { data: completedDocs, isLoading: completedLoading } = useQuery({
+    queryKey: ["documents-completed-sidebar", auditTarget],
+    queryFn: () =>
+      listDocuments({
+        status_filter: "COMPLETED",
+        audit_target: auditTarget === ALL ? undefined : auditTarget,
+        limit: 20,
+      }),
+  });
+
   const selectCheckpoint = useCallback(
     (checkpointId: string) => {
       const params = new URLSearchParams(searchParams.toString());
@@ -86,6 +104,12 @@ export function CheckpointList({ className }: CheckpointListProps) {
         <span className="text-sm font-medium text-muted-foreground">
           Documents for Review
         </span>
+        <p className="mt-1 text-xs leading-snug text-muted-foreground">
+          Only items <strong className="font-medium">pending human review</strong> appear
+          here. Successful Vision POC runs are{" "}
+          <strong className="font-medium">completed</strong> without a review step — see
+          below.
+        </p>
       </div>
 
       {/* Filters */}
@@ -158,7 +182,7 @@ export function CheckpointList({ className }: CheckpointListProps) {
           </div>
         ) : !data?.checkpoints?.length ? (
           <div className="p-4 text-sm text-muted-foreground">
-            No documents awaiting review
+            No documents awaiting human review for this filter.
           </div>
         ) : (
           <ul className="divide-y divide-border">
@@ -203,6 +227,56 @@ export function CheckpointList({ className }: CheckpointListProps) {
           </div>
         </div>
       )}
+
+      {/* Completed uploads (e.g. Vision POC) — same verification viewer, different queue */}
+      <div className="shrink-0 border-t border-border px-3 py-2">
+        <span className="text-sm font-medium text-muted-foreground">
+          Completed extractions
+        </span>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Open to see PDF + extracted fields.{" "}
+          <Link href="/audit" className="font-medium text-foreground underline underline-offset-2">
+            Audit Log
+          </Link>{" "}
+          has full history.
+        </p>
+      </div>
+      <div className="max-h-48 min-h-0 overflow-auto border-t border-border">
+        {completedLoading ? (
+          <ul className="divide-y divide-border p-2">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <li key={i} className="px-3 py-2">
+                <Skeleton className="h-4 w-full" />
+              </li>
+            ))}
+          </ul>
+        ) : !completedDocs?.length ? (
+          <p className="p-4 text-sm text-muted-foreground">
+            No completed documents for this filter yet.
+          </p>
+        ) : (
+          <ul className="divide-y divide-border">
+            {completedDocs.map((doc) => (
+              <li key={doc.id}>
+                <Link
+                  href={`/hitl?document_id=${doc.id}`}
+                  className={cn(
+                    "flex flex-col gap-0.5 px-3 py-2.5 text-left text-sm transition-colors hover:bg-muted/50",
+                    selectedId === String(doc.id) && "bg-muted"
+                  )}
+                >
+                  <span className="truncate font-medium text-foreground">
+                    {doc.filename}
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    {doc.audit_target ?? "—"} · COMPLETED
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </div>
   );
 }

@@ -67,6 +67,7 @@ class DocumentResponse(DocumentBase):
     """Schema for document responses"""
     id: int
     user_id: int
+    audit_target: Optional[str] = None
     status: str
     result_text: Optional[str] = None
     prompt: Optional[str] = None

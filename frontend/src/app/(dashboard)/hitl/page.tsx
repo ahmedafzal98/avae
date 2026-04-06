@@ -231,6 +231,7 @@ function VerificationDashboardContent() {
                 className="h-full min-h-0"
                 batchId={documentIdNum != null ? `Document #${documentIdNum}` : undefined}
                 auditTarget={verification?.audit_target}
+                verificationStatus={verification?.verification_status}
                 officialRecordSyncedAt={verification?.official_record_synced_at}
                 rows={verification?.rows ?? []}
                 isLoading={verificationLoading}

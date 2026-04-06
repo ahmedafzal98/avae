@@ -417,6 +417,43 @@ export async function requeueDocument(
   );
 }
 
+/** GET /documents — list documents for user */
+export interface DocumentListItem {
+  id: number;
+  user_id: number;
+  filename: string;
+  s3_key: string;
+  audit_target?: string | null;
+  status: string;
+  created_at: string;
+  completed_at?: string | null;
+}
+
+export interface ListDocumentsParams {
+  user_id?: number;
+  status_filter?: string;
+  audit_target?: string;
+  skip?: number;
+  limit?: number;
+}
+
+export async function listDocuments(
+  params: ListDocumentsParams = {},
+  options: ApiOptions = {}
+): Promise<DocumentListItem[]> {
+  const search = new URLSearchParams();
+  if (params.user_id != null) search.set("user_id", String(params.user_id));
+  if (params.status_filter) search.set("status_filter", params.status_filter);
+  if (params.audit_target) search.set("audit_target", params.audit_target);
+  if (params.skip != null) search.set("skip", String(params.skip));
+  if (params.limit != null) search.set("limit", String(params.limit));
+  const qs = search.toString();
+  return apiJson<DocumentListItem[]>(`/api/documents${qs ? `?${qs}` : ""}`, {
+    ...options,
+    cache: "no-store",
+  });
+}
+
 /** Audit log list item (Phase 7.2) */
 export interface AuditLogListItem {
   id: number;

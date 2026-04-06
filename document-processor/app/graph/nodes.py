@@ -16,6 +16,8 @@ from app.dependencies import redis_client
 from app.database import SessionLocal
 from app.db_models import Document, AuditLog
 from app.extraction_service import extract_structured
+from app.extraction_utils import strip_empty_extraction_fields
+from app.vision_extraction_service import extract_structured_vision
 from app.clients import fetch_company, fetch_land_data
 from app.verification import verify_extraction
 from app.tasks import (
@@ -176,13 +178,19 @@ def _extract_single_page(
     try:
         if page_type == _PAGE_TYPE_IMAGE:
             from app.extractors.textract_extractor import extract_text_from_image
+            from app.extractors.tesseract_ocr_extractor import extract_text_from_image_tesseract
 
             image_bytes = page.get("image_bytes") or b""
-            text = extract_text_from_image(image_bytes) or ""
+            # Arabic / multilingual scans: Tesseract (ara+eng) first; Textract does not support Arabic.
+            text = extract_text_from_image_tesseract(image_bytes) or ""
             if text:
-                logger.info(f"   Page {page_num}: Textract OCR ({len(text)} chars)")
-            else:
-                logger.warning(f"   Page {page_num}: Textract returned empty")
+                logger.info(f"   Page {page_num}: Tesseract OCR ({len(text)} chars)")
+            if not text:
+                text = extract_text_from_image(image_bytes) or ""
+                if text:
+                    logger.info(f"   Page {page_num}: Textract OCR ({len(text)} chars)")
+            if not text:
+                logger.warning(f"   Page {page_num}: OCR returned empty (Tesseract + Textract)")
         elif page_type == _PAGE_TYPE_CHART:
             from app.extractors.vlm_extractor import extract_chart_summary
 
@@ -302,11 +310,22 @@ def merge_extractions(state: AVAEState) -> dict[str, Any]:
 
 
 def normalize(state: AVAEState) -> dict[str, Any]:
-    """Structured LLM extraction."""
-    extracted_text = state["extracted_text"]
+    """Structured LLM extraction (text and/or GPT-4o vision for vision_poc)."""
+    extracted_text = state.get("extracted_text") or ""
     audit_target = state["audit_target"]
 
-    extracted_json = extract_structured(extracted_text, audit_target)
+    if audit_target == "vision_poc":
+        extracted_json = None
+        pdf_content = state.get("pdf_content")
+        if pdf_content:
+            extracted_json = extract_structured_vision(pdf_content)
+        if extracted_json is None:
+            extracted_json = extract_structured(extracted_text, audit_target)
+        if isinstance(extracted_json, dict):
+            extracted_json = strip_empty_extraction_fields(extracted_json) or None
+    else:
+        extracted_json = extract_structured(extracted_text, audit_target)
+
     return {"extracted_json": extracted_json}
 
 

@@ -17,6 +17,8 @@ class AuditTarget(str, Enum):
     HM_LAND_REGISTRY = "hm_land_registry"
     EPC = "epc"
     FINANCIAL = "financial"
+    # Multimodal POC: GPT-4o vision on PDF page images (no external verification API)
+    VISION_POC = "vision_poc"
 
 
 @dataclass(frozen=True)

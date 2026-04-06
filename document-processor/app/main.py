@@ -32,6 +32,7 @@ from sqlalchemy import select, func
 from fastapi import Depends
 from app.chat_service import chat_service
 from app.api_registry import validate_audit_target
+from app.extraction_utils import field_has_value
 from app.schemas_hitl import (
     OverrideRequest,
     ManualCorrectionRequest,
@@ -183,7 +184,7 @@ async def upload_files(
     files: List[UploadFile] = File(...),
     user_id: int = 1,  # Accept user_id as query parameter (default to 1)
     prompt: Optional[str] = None,  # Optional prompt for AI summarization
-    audit_target: Optional[str] = "epc",  # Audit target: epc, companies_house, hm_land_registry. Default: epc.
+    audit_target: Optional[str] = "epc",  # epc | companies_house | hm_land_registry | financial | vision_poc (GPT-4o vision POC)
     remediation_for_checkpoint_id: Optional[str] = None,  # Task 5.6: attach file to AWAITING_CLIENT_REMEDIATION checkpoint
     db: AsyncSession = Depends(get_async_db)
 ):
@@ -938,6 +939,7 @@ async def list_documents(
     skip: int = 0,
     limit: int = 100,
     status_filter: Optional[str] = None,
+    audit_target: Optional[str] = None,
     db: AsyncSession = Depends(get_async_db)
 ):
     """
@@ -949,6 +951,7 @@ async def list_documents(
     - skip: Number of records to skip (default: 0)
     - limit: Maximum records to return (default: 100, max: 1000)
     - status_filter: Filter by status (PENDING, PROCESSING, COMPLETED, FAILED)
+    - audit_target: Filter by audit target (e.g. vision_poc, companies_house)
     """
     if limit > 1000:
         limit = 1000
@@ -957,8 +960,10 @@ async def list_documents(
     
     if status_filter:
         query = query.where(Document.status == status_filter)
-    
-    query = query.offset(skip).limit(limit)
+    if audit_target:
+        query = query.where(Document.audit_target == audit_target)
+
+    query = query.order_by(Document.created_at.desc()).offset(skip).limit(limit)
     result = await db.execute(query)
     documents = result.scalars().all()
     return documents
@@ -1053,6 +1058,10 @@ def _build_verification_rows(
         doc_val = (extracted_json or {}).get(field) if isinstance(extracted_json, dict) else None
         api_val = _api_val(field)
         flag = flag_by_field.get(field)
+
+        # Vision POC: only show rows for fields that have a value (unless discrepancy flag)
+        if audit_target == "vision_poc" and not flag and not field_has_value(doc_val):
+            continue
 
         if flag:
             status = "DISCREPANCY"

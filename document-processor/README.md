@@ -292,6 +292,21 @@ Copy `env.example` to `.env` and fill in all values. Required variables:
 
 For data protection enquiries, contact your system administrator.
 
+## Demo sample PDFs
+
+Bundled PDFs for **Vision POC** demos live in [`samples/demo/`](samples/demo/README.md):
+
+- **Eng-Arabic.pdf** — English / Arabic mixed document  
+- **809508119-Iqama.pdf** — residence permit–style card (scanned/image-heavy)
+
+Upload with `audit_target=vision_poc` and run the **SQS worker** so jobs complete. Quick upload:
+
+```bash
+cd document-processor
+chmod +x scripts/upload_demo_pdfs.sh   # once
+./scripts/upload_demo_pdfs.sh
+```
+
 ## License
 
 MIT

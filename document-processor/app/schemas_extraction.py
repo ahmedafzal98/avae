@@ -56,6 +56,97 @@ class LandRegistryExtraction(BaseModel):
 # Financial — Any financial statement (US SEC, UK, Pakistan PSX, etc.)
 # ---------------------------------------------------------------------------
 
+class VisionPOCExtraction(BaseModel):
+    """
+    Multimodal POC: Gulf residence permits (Iqama), national IDs, and English/Arabic bilingual forms.
+    All fields optional — the model must leave unknown fields unset (null). Do not guess.
+    """
+    document_type: Optional[str] = Field(
+        default=None,
+        description="One short label, e.g. Saudi Iqama, employment contract, bilingual form.",
+    )
+    document_title: Optional[str] = Field(
+        default=None,
+        description="Main document title or form header as printed (English and/or Arabic).",
+    )
+    full_name_english: Optional[str] = Field(
+        default=None,
+        description="Holder or signatory name in Latin/English as printed.",
+    )
+    full_name_arabic: Optional[str] = Field(
+        default=None,
+        description="Full name in Arabic script exactly as on the document.",
+    )
+    id_number: Optional[str] = Field(
+        default=None,
+        description="Iqama number, national ID, or resident permit number (digits/format as shown).",
+    )
+    passport_number: Optional[str] = Field(
+        default=None,
+        description="Passport number if visible.",
+    )
+    nationality: Optional[str] = Field(
+        default=None,
+        description="Nationality or country as printed.",
+    )
+    gender: Optional[str] = Field(
+        default=None,
+        description="Gender if explicitly shown (e.g. M/F or Arabic equivalent).",
+    )
+    religion: Optional[str] = Field(
+        default=None,
+        description="Religion if shown on ID.",
+    )
+    date_of_birth: Optional[str] = Field(
+        default=None,
+        description="Date of birth in the format shown on the document.",
+    )
+    issue_date: Optional[str] = Field(
+        default=None,
+        description="Issue date as printed (Hijri/Gregory as shown).",
+    )
+    expiry_date: Optional[str] = Field(
+        default=None,
+        description="Expiry or valid-until date as printed.",
+    )
+    employer_or_sponsor: Optional[str] = Field(
+        default=None,
+        description="Employer, kafeel, or sponsor name (English and/or Arabic as printed).",
+    )
+    occupation: Optional[str] = Field(
+        default=None,
+        description="Job title or profession as printed.",
+    )
+    address: Optional[str] = Field(
+        default=None,
+        description="Address block if present on the document.",
+    )
+    party_one_name_english: Optional[str] = Field(
+        default=None,
+        description="First party / employer name in English (bilingual contracts).",
+    )
+    party_one_name_arabic: Optional[str] = Field(
+        default=None,
+        description="First party name in Arabic (bilingual contracts).",
+    )
+    party_two_name_english: Optional[str] = Field(
+        default=None,
+        description="Second party / employee name in English (bilingual contracts).",
+    )
+    party_two_name_arabic: Optional[str] = Field(
+        default=None,
+        description="Second party name in Arabic (bilingual contracts).",
+    )
+    agreement_or_contract_subject: Optional[str] = Field(
+        default=None,
+        description="Subject line or purpose of agreement (e.g. employment, lease) if visible.",
+    )
+    additional_notes: Optional[str] = Field(
+        default=None,
+        description="Only if other material facts appear and do not fit above fields.",
+    )
+
+
 class FinancialExtraction(BaseModel):
     """Structured extraction for any financial document (annual reports, quarterly statements, etc.)."""
     company_name: str = Field(description="The company or issuer name.")
@@ -90,6 +181,7 @@ EXTRACTION_SCHEMA_BY_TARGET = {
     AuditTarget.COMPANIES_HOUSE: CorporateKYCExtraction,
     AuditTarget.HM_LAND_REGISTRY: LandRegistryExtraction,
     AuditTarget.FINANCIAL: FinancialExtraction,
+    AuditTarget.VISION_POC: VisionPOCExtraction,
 }
 
 

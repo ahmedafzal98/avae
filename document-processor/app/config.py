@@ -19,9 +19,21 @@ class Settings(BaseSettings):
     
     # LlamaCloud Configuration
     llama_cloud_api_key: str
+    # LlamaParse OCR languages (comma-separated ISO 639-1 codes). Default includes Arabic + English.
+    llamaparse_language: str = "ar,en"
+
+    # Tesseract (local OCR for scanned pages — Arabic + Latin). Requires `tesseract` binary and `ara` traineddata.
+    tesseract_enabled: bool = True
+    tesseract_lang: str = "ara+eng"
+    tesseract_cmd: Optional[str] = None
     
     # OpenAI Configuration (for RAG embeddings and chat)
     openai_api_key: Optional[str] = None
+
+    # Multimodal vision extraction (audit_target=vision_poc) — GPT-4o on rendered PDF pages
+    vision_extraction_model: str = "gpt-4o"
+    vision_max_pages: int = 5
+    vision_render_dpi: int = 120
 
     # AVAE External API Keys (Phase 2 verification)
     companies_house_api_key: Optional[str] = None

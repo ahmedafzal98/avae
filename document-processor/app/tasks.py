@@ -24,29 +24,33 @@ logger = logging.getLogger(__name__)
 
 # Initialize LlamaParse with Markdown result type for better table preservation
 llamaparse_parser = None
+_llamaparse_language: str | None = None
+
 
 def get_llamaparse_parser():
     """
-    Lazy initialization of LlamaParse parser
-    Returns a configured LlamaParse instance
+    Lazy initialization of LlamaParse parser.
+    Recreates the parser when `llamaparse_language` in settings changes.
     """
-    global llamaparse_parser
-    
-    if llamaparse_parser is None:
+    global llamaparse_parser, _llamaparse_language
+
+    lang = (getattr(settings, "llamaparse_language", None) or "ar,en").strip() or "ar,en"
+
+    if llamaparse_parser is None or _llamaparse_language != lang:
         try:
             llamaparse_parser = LlamaParse(
                 api_key=settings.llama_cloud_api_key,
                 result_type="markdown",  # Preserves tables and layout
                 verbose=True,
-                language="en",
-                
-                num_workers=1  # Process one page at a time to avoid rate limits
+                language=lang,
+                num_workers=1,  # Process one page at a time to avoid rate limits
             )
-            logger.info("✅ LlamaParse initialized successfully")
+            _llamaparse_language = lang
+            logger.info("✅ LlamaParse initialized successfully (language=%s)", lang)
         except Exception as e:
             logger.error(f"❌ Failed to initialize LlamaParse: {e}")
             raise
-    
+
     return llamaparse_parser
 
 

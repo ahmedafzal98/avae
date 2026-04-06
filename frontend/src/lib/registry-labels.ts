@@ -13,6 +13,8 @@ export function getOfficialRegistryName(auditTarget: string): string {
       return "EPC Register";
     case "financial":
       return "SEC EDGAR";
+    case "vision_poc":
+      return "Multimodal extraction (POC)";
     default:
       return "Official Record";
   }
@@ -29,6 +31,8 @@ export function getVerifiedAgainstLabel(auditTarget: string): string {
       return "Verified against EPC Register";
     case "financial":
       return "Verified against SEC EDGAR";
+    case "vision_poc":
+      return "Extracted via GPT-4o vision (no external registry)";
     default:
       return "Verified from official records";
   }
@@ -39,6 +43,8 @@ export function getSourceBadgeLabel(auditTarget: string): string {
   switch (auditTarget?.toLowerCase()) {
     case "financial":
       return "Verified from financial records";
+    case "vision_poc":
+      return "AI vision extraction (POC)";
     case "companies_house":
     case "hm_land_registry":
     case "epc":

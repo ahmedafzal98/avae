@@ -12,6 +12,12 @@ import {
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import { ExtractedValue } from "@/components/verification/ExtractedValue";
+import {
+  buildVisionPocDisplayItems,
+  visionPocFieldLabelArabic,
+  type VisionPocDisplayItem,
+} from "@/lib/vision-poc-display";
 
 function formatFieldName(field: string): string {
   return field
@@ -33,6 +39,8 @@ export interface VerificationFeedPaneProps {
   batchId?: string | null;
   /** Audit target (companies_house, epc, etc.) — used to display registry name */
   auditTarget?: string | null;
+  /** Backend verification status (e.g. EXTRACTED = no registry compare) */
+  verificationStatus?: string | null;
   /** ISO timestamp when official registry was last synced */
   officialRecordSyncedAt?: string | null;
   rows: VerificationFieldRow[];
@@ -56,6 +64,7 @@ export interface VerificationFeedPaneProps {
 export function VerificationFeedPane({
   batchId,
   auditTarget,
+  verificationStatus,
   officialRecordSyncedAt,
   rows,
   isLoading = false,
@@ -68,15 +77,40 @@ export function VerificationFeedPane({
   highlightedRow,
   className,
 }: VerificationFeedPaneProps) {
-  const verified = rows.filter((r) => r.status === "VERIFIED").length;
+  /** Vision POC / financial-style: extraction only, no Companies House (etc.) column */
+  const extractionOnly =
+    auditTarget === "vision_poc" || verificationStatus === "EXTRACTED";
+
+  /** Bilingual EN/AR layout for vision POC name fields */
+  const visionPocBilingual = auditTarget === "vision_poc";
+  const displayItems = visionPocBilingual
+    ? buildVisionPocDisplayItems(rows)
+    : null;
+
+  const verified = extractionOnly
+    ? rows.filter(
+        (r) =>
+          r.document_value != null && String(r.document_value).trim() !== ""
+      ).length
+    : rows.filter((r) => r.status === "VERIFIED").length;
   const differences = rows.filter((r) => r.status === "DISCREPANCY").length;
   const total = rows.length;
   const reliability =
-    total > 0 ? ((verified / total) * 100).toFixed(1) : null;
+    total > 0
+      ? extractionOnly
+        ? ((verified / total) * 100).toFixed(1)
+        : ((rows.filter((r) => r.status === "VERIFIED").length / total) * 100).toFixed(1)
+      : null;
 
   // Overall Status: Low / Medium / High Risk (executive-friendly)
   const overallStatus =
-    differences === 0 ? "low" : differences <= 2 ? "medium" : "high";
+    extractionOnly && differences === 0
+      ? "low"
+      : differences === 0
+        ? "low"
+        : differences <= 2
+          ? "medium"
+          : "high";
 
   if (error) {
     return (
@@ -101,8 +135,14 @@ export function VerificationFeedPane({
       {/* Top-Level Verification Summary (executives love this) */}
       <div className="shrink-0 border-b border-slate-200 p-6">
         <h2 className="text-lg font-semibold text-slate-900">
-          Verification Summary
+          {extractionOnly ? "Extraction summary" : "Verification Summary"}
         </h2>
+        {extractionOnly && (
+          <p className="mt-1 text-sm text-slate-600">
+            No external registry comparison for this mode — review extracted
+            values against the PDF.
+          </p>
+        )}
         {batchId && (
           <p className="mt-1 font-mono text-sm text-slate-500">
             Reference: {batchId}
@@ -114,9 +154,10 @@ export function VerificationFeedPane({
           <div className="mt-4 flex flex-wrap items-center gap-4">
             <span className="inline-flex items-center gap-2 text-sm text-emerald-700">
               <CheckCircle className="size-4" strokeWidth={1.5} />
-              <strong>{verified}</strong> fields verified
+              <strong>{verified}</strong>{" "}
+              {extractionOnly ? "fields with values" : "fields verified"}
             </span>
-            {differences > 0 && (
+            {!extractionOnly && differences > 0 && (
               <span className="inline-flex items-center gap-2 text-sm text-amber-700">
                 <AlertTriangle className="size-4" strokeWidth={1.5} />
                 <strong>{differences}</strong> difference{differences !== 1 ? "s" : ""} found
@@ -156,7 +197,7 @@ export function VerificationFeedPane({
       </div>
 
       {/* Alert: Action Required when differences found */}
-      {!isLoading && differences > 0 && (
+      {!isLoading && !extractionOnly && differences > 0 && (
         <div
           className="shrink-0 border-b border-slate-200 bg-amber-50/80 px-6 py-3"
           role="alert"
@@ -196,27 +237,65 @@ export function VerificationFeedPane({
           </p>
         ) : (
           <div className="space-y-4">
-            {rows.map((row, idx) => (
-              <ComparisonCard
-                key={`${row.field}-${idx}`}
-                row={row}
-                registryName={getOfficialRegistryName(auditTarget ?? "")}
-                sourceBadge={getSourceBadgeLabel(auditTarget ?? "")}
-                sourceEmoji={getSourceBadgeEmoji(auditTarget ?? "")}
-                syncedAt={officialRecordSyncedAt}
-                onClick={
-                  row.status === "DISCREPANCY" && onDiscrepancyCardClick
-                    ? () => onDiscrepancyCardClick(row)
-                    : undefined
-                }
-                onHighlight={onRowHighlight}
-                isHighlighted={
-                  highlightedRow != null &&
-                  highlightedRow.field === row.field &&
-                  highlightedRow.document_value === row.document_value
-                }
-              />
-            ))}
+            {visionPocBilingual && displayItems
+              ? displayItems.map((item, idx) =>
+                  item.kind === "single" ? (
+                    <ComparisonCard
+                      key={`${item.row.field}-${idx}`}
+                      row={item.row}
+                      extractionOnly={extractionOnly}
+                      bilingualExtractedDisplay
+                      registryName={getOfficialRegistryName(auditTarget ?? "")}
+                      sourceBadge={getSourceBadgeLabel(auditTarget ?? "")}
+                      sourceEmoji={getSourceBadgeEmoji(auditTarget ?? "")}
+                      syncedAt={officialRecordSyncedAt}
+                      onClick={
+                        item.row.status === "DISCREPANCY" &&
+                        onDiscrepancyCardClick
+                          ? () => onDiscrepancyCardClick(item.row)
+                          : undefined
+                      }
+                      onHighlight={onRowHighlight}
+                      isHighlighted={
+                        highlightedRow != null &&
+                        highlightedRow.field === item.row.field &&
+                        highlightedRow.document_value === item.row.document_value
+                      }
+                    />
+                  ) : (
+                    <BilingualPairCard
+                      key={item.key}
+                      item={item}
+                      extractionOnly={extractionOnly}
+                      onDiscrepancyCardClick={onDiscrepancyCardClick}
+                      onHighlight={onRowHighlight}
+                      highlightedRow={highlightedRow}
+                    />
+                  )
+                )
+              : rows.map((row, idx) => (
+                  <ComparisonCard
+                    key={`${row.field}-${idx}`}
+                    row={row}
+                    extractionOnly={extractionOnly}
+                    bilingualExtractedDisplay={false}
+                    registryName={getOfficialRegistryName(auditTarget ?? "")}
+                    sourceBadge={getSourceBadgeLabel(auditTarget ?? "")}
+                    sourceEmoji={getSourceBadgeEmoji(auditTarget ?? "")}
+                    syncedAt={officialRecordSyncedAt}
+                    onClick={
+                      row.status === "DISCREPANCY" && onDiscrepancyCardClick
+                        ? () => onDiscrepancyCardClick(row)
+                        : undefined
+                    }
+                    onHighlight={onRowHighlight}
+                    isHighlighted={
+                      highlightedRow != null &&
+                      highlightedRow.field === row.field &&
+                      highlightedRow.document_value === row.document_value
+                    }
+                  />
+                ))}
           </div>
         )}
       </div>
@@ -264,8 +343,148 @@ const WHY_DIFFERENT_EXPLANATION = `This difference may be due to:
 • Recent update not yet reflected in official records
 • Rounding or formatting differences`;
 
+function rowHasPdfLocation(row: VerificationFieldRow | undefined): boolean {
+  return !!row?.pdf_location;
+}
+
+function BilingualPairCard({
+  item,
+  extractionOnly,
+  onDiscrepancyCardClick,
+  onHighlight,
+  highlightedRow,
+}: {
+  item: Extract<
+    VisionPocDisplayItem,
+    { kind: "name_pair" | "party_pair" }
+  >;
+  extractionOnly: boolean;
+  onDiscrepancyCardClick?: (row: VerificationFieldRow) => void;
+  onHighlight?: (row: VerificationFieldRow | null) => void;
+  highlightedRow?: VerificationFieldRow | null;
+}) {
+  const { english, arabic, label, labelAr } = item;
+  const primaryForHighlight =
+    rowHasPdfLocation(english) ? english : rowHasPdfLocation(arabic) ? arabic : english ?? arabic;
+  const hasPdfLocation = rowHasPdfLocation(english) || rowHasPdfLocation(arabic);
+
+  const isHighlighted =
+    highlightedRow != null &&
+    ((english != null &&
+      highlightedRow.field === english.field &&
+      highlightedRow.document_value === english.document_value) ||
+      (arabic != null &&
+        highlightedRow.field === arabic.field &&
+        highlightedRow.document_value === arabic.document_value));
+
+  const handleClick = () => {
+    const discrepancy =
+      english?.status === "DISCREPANCY"
+        ? english
+        : arabic?.status === "DISCREPANCY"
+          ? arabic
+          : null;
+    if (discrepancy && onDiscrepancyCardClick) {
+      onDiscrepancyCardClick(discrepancy);
+    }
+    if (onHighlight && hasPdfLocation && primaryForHighlight) {
+      onHighlight(isHighlighted ? null : primaryForHighlight);
+    }
+  };
+
+  const handleMouseEnter = () => {
+    if (onHighlight && primaryForHighlight && hasPdfLocation) {
+      onHighlight(primaryForHighlight);
+    }
+  };
+
+  const handleMouseLeave = () => {
+    if (onHighlight) onHighlight(null);
+  };
+
+  const showExtractedBadge =
+    extractionOnly &&
+    ((english != null &&
+      String(english.document_value ?? "").trim() !== "") ||
+      (arabic != null && String(arabic.document_value ?? "").trim() !== ""));
+
+  return (
+    <div
+      className={cn(
+        "rounded-lg border border-slate-200 bg-white p-6 transition-colors",
+        onHighlight && hasPdfLocation ? "cursor-pointer hover:bg-slate-50/80" : "",
+        isHighlighted && "ring-2 ring-slate-400 ring-offset-2",
+        onHighlight && !hasPdfLocation && "opacity-90"
+      )}
+      onClick={handleClick}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+      role={onHighlight && hasPdfLocation ? "button" : undefined}
+      tabIndex={onHighlight && hasPdfLocation ? 0 : undefined}
+      onKeyDown={
+        onHighlight && hasPdfLocation
+          ? (e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                if (primaryForHighlight) {
+                  onHighlight?.(isHighlighted ? null : primaryForHighlight);
+                }
+              }
+            }
+          : undefined
+      }
+    >
+      <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2 border-b border-slate-100 pb-3">
+        <div className="flex min-w-0 flex-1 flex-col gap-0.5 sm:flex-row sm:items-baseline sm:gap-3">
+          <span className="text-sm font-semibold text-slate-800">{label}</span>
+          <span
+            className="text-sm font-medium text-slate-600"
+            dir="rtl"
+            lang="ar"
+          >
+            {labelAr}
+          </span>
+        </div>
+        {showExtractedBadge && (
+          <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-semibold text-sky-800">
+            Extracted
+          </span>
+        )}
+      </div>
+
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+        <div className="min-w-0">
+          <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+            English
+          </p>
+          {english ? (
+            <ExtractedValue field={english.field} value={english.document_value} />
+          ) : (
+            <span className="text-slate-400">—</span>
+          )}
+        </div>
+        <div className="min-w-0 border-t border-slate-100 pt-4 sm:border-t-0 sm:border-s sm:border-slate-100 sm:ps-6 sm:pt-0">
+          <p
+            className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-slate-500"
+            dir="rtl"
+          >
+            العربية
+          </p>
+          {arabic ? (
+            <ExtractedValue field={arabic.field} value={arabic.document_value} />
+          ) : (
+            <span className="text-slate-400">—</span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ComparisonCard({
   row,
+  extractionOnly = false,
+  bilingualExtractedDisplay = false,
   registryName,
   sourceBadge,
   sourceEmoji,
@@ -275,6 +494,9 @@ function ComparisonCard({
   isHighlighted,
 }: {
   row: VerificationFieldRow;
+  extractionOnly?: boolean;
+  /** Use RTL/LTR + Arabic font for vision_poc single fields */
+  bilingualExtractedDisplay?: boolean;
   registryName: string;
   sourceBadge: string;
   sourceEmoji: string;
@@ -338,9 +560,25 @@ function ComparisonCard({
       <div>
         {/* Field name + Status Badge */}
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-          <span className="text-sm font-medium text-slate-600">
-            {formatFieldName(row.field)}
-          </span>
+          {bilingualExtractedDisplay &&
+          visionPocFieldLabelArabic(row.field) != null ? (
+            <div className="flex min-w-0 flex-col gap-0.5 sm:flex-row sm:items-baseline sm:gap-2">
+              <span className="text-sm font-medium text-slate-800">
+                {formatFieldName(row.field)}
+              </span>
+              <span
+                className="text-sm font-medium text-slate-600"
+                dir="rtl"
+                lang="ar"
+              >
+                {visionPocFieldLabelArabic(row.field)}
+              </span>
+            </div>
+          ) : (
+            <span className="text-sm font-medium text-slate-600">
+              {formatFieldName(row.field)}
+            </span>
+          )}
           {isMatch && (
             <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
               <CheckCircle className="size-3" strokeWidth={1.5} />
@@ -353,42 +591,60 @@ function ComparisonCard({
               Difference Found
             </span>
           )}
-          {isPending && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
-              Needs Review
-            </span>
-          )}
+          {isPending &&
+            (extractionOnly &&
+            row.document_value != null &&
+            String(row.document_value).trim() !== "" ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-semibold text-sky-800">
+                Extracted
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
+                Needs Review
+              </span>
+            ))}
         </div>
 
-        {/* 2-column: FROM YOUR DOCUMENT | Official Record (enterprise side-by-side) */}
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        {/* 2-column: document | official record — or single column for Vision POC / EXTRACTED */}
+        <div
+          className={cn(
+            "grid grid-cols-1 gap-4",
+            !extractionOnly && "sm:grid-cols-2"
+          )}
+        >
           <div>
             <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
-              From Your Document
+              {extractionOnly ? "Extracted value" : "From Your Document"}
             </p>
-            <p className="font-semibold text-slate-900">
-              {formatValue(row.document_value)}
-            </p>
-          </div>
-          <div>
-            <div className="mb-1 flex items-center gap-1.5">
-              <ShieldCheck className="size-3.5 text-emerald-600" strokeWidth={2} aria-hidden />
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
-                {registryName}
-              </span>
-            </div>
-            <p className="font-semibold text-slate-900">
-              {formatValue(row.api_value)}
-            </p>
-            <p className="mt-1 text-[10px] text-slate-500" title="This data comes from official filings submitted by the organisation.">
-              {sourceEmoji} {sourceBadge}
-            </p>
-            {syncedAt && (
-              <p className="mt-0.5 text-[10px] text-slate-400">
-                Live sync: {formatLiveSyncTimestamp(syncedAt)}
+            {extractionOnly && bilingualExtractedDisplay ? (
+              <ExtractedValue field={row.field} value={row.document_value} />
+            ) : (
+              <p className="font-semibold text-slate-900">
+                {formatValue(row.document_value)}
               </p>
             )}
           </div>
+          {!extractionOnly && (
+            <div>
+              <div className="mb-1 flex items-center gap-1.5">
+                <ShieldCheck className="size-3.5 text-emerald-600" strokeWidth={2} aria-hidden />
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                  {registryName}
+                </span>
+              </div>
+              <p className="font-semibold text-slate-900">
+                {formatValue(row.api_value)}
+              </p>
+              <p className="mt-1 text-[10px] text-slate-500" title="This data comes from official filings submitted by the organisation.">
+                {sourceEmoji} {sourceBadge}
+              </p>
+              {syncedAt && (
+                <p className="mt-0.5 text-[10px] text-slate-400">
+                  Live sync: {formatLiveSyncTimestamp(syncedAt)}
+                </p>
+              )}
+            </div>
+          )}
         </div>
 
         {/* "Why is this different?" — reduces anxiety when mismatch appears */}

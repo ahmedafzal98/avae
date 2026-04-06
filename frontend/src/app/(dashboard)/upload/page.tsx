@@ -9,6 +9,7 @@ import { AuditTargetSelect } from "@/components/upload/AuditTargetSelect";
 import { LiveEngineStatus } from "@/components/upload/LiveEngineStatus";
 import { useUpload } from "@/hooks/useUpload";
 import type { AuditTarget } from "@/types/audit-target";
+import { DEMO_SAMPLE_PDFS } from "@/lib/demo-samples";
 import { toastError } from "@/lib/toast";
 import { Loader2 } from "lucide-react";
 
@@ -21,7 +22,8 @@ function UploadPageContent() {
   const isRemediationMode = Boolean(remediationCheckpointId);
 
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  const [auditTarget, setAuditTarget] = useState<AuditTarget>("companies_house");
+  /** Default Vision POC for multimodal / Arabic / ID demos; switch to Companies House for UK registry checks */
+  const [auditTarget, setAuditTarget] = useState<AuditTarget>("vision_poc");
   const [taskIds, setTaskIds] = useState<string[]>([]);
 
   const upload = useUpload();
@@ -60,7 +62,7 @@ function UploadPageContent() {
         <p className="mt-1 text-body text-muted-foreground">
           {isRemediationMode
             ? "Attach replacement file for AWAITING_CLIENT_REMEDIATION checkpoint"
-            : "Upload regulatory documentation for automated extraction and cross-reference verification against statutory databases."}
+            : "Upload PDFs for extraction. Use Vision POC (GPT-4o) for IDs, Arabic, or mixed documents—no external registry. Use Companies House for UK company verification."}
         </p>
       </div>
 
@@ -108,6 +110,23 @@ function UploadPageContent() {
                   onValueChange={setAuditTarget}
                   className="h-10 w-full rounded-lg border border-[#e2e8f0] bg-white px-3 text-body"
                 />
+                <p className="mt-3 text-xs leading-relaxed text-[#64748b]">
+                  <span className="font-medium text-[#475569]">Demo PDFs (repo):</span>{" "}
+                  {DEMO_SAMPLE_PDFS.map((s, i) => (
+                    <span key={s.filename}>
+                      {i > 0 ? " · " : null}
+                      <code className="rounded bg-[#f1f5f9] px-1 py-0.5 text-[11px]">
+                        samples/demo/{s.filename}
+                      </code>{" "}
+                      ({s.description})
+                    </span>
+                  ))}
+                  . Copy them here or run{" "}
+                  <code className="rounded bg-[#f1f5f9] px-1 py-0.5 text-[11px]">
+                    document-processor/scripts/upload_demo_pdfs.sh
+                  </code>
+                  .
+                </p>
               </CardContent>
             </Card>
           )}

@@ -17,6 +17,8 @@ Enterprise document verification for UK compliance. Extract structured data from
 - **FastAPI:** http://localhost:8000  
 - **API docs:** http://localhost:8000/docs  
 
+**Demo PDFs (Vision POC):** see [`document-processor/samples/demo/`](document-processor/samples/demo/README.md) — includes `Eng-Arabic.pdf` and `809508119-Iqama.pdf`. Run `document-processor/scripts/upload_demo_pdfs.sh` after the API is up.
+
 ---
 
 ## Full Setup Guide

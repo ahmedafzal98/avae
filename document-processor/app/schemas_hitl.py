@@ -95,7 +95,10 @@ class CheckpointListItem(BaseModel):
 
     checkpoint_id: str = Field(..., description="Task ID (document ID) for the checkpoint")
     filename: str = Field(..., description="Original filename")
-    audit_target: str = Field(..., description="Audit target (epc, companies_house, hm_land_registry, financial)")
+    audit_target: str = Field(
+        ...,
+        description="Audit target (epc, companies_house, hm_land_registry, financial, vision_poc)",
+    )
     status: str = Field(..., description="PENDING_HUMAN_REVIEW or AWAITING_CLIENT_REMEDIATION")
     document_preview: Optional[dict[str, Any]] = Field(
         None,
@@ -162,7 +165,10 @@ class DocumentVerificationResponse(BaseModel):
         ...,
         description="Overall status: VERIFIED | DISCREPANCY_FLAG | PENDING",
     )
-    audit_target: str = Field(..., description="epc | companies_house | hm_land_registry | financial")
+    audit_target: str = Field(
+        ...,
+        description="epc | companies_house | hm_land_registry | financial | vision_poc",
+    )
     rows: list[VerificationFieldRow] = Field(
         default_factory=list,
         description="Field-by-field comparison for VerificationTable",

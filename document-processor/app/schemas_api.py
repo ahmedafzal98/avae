@@ -79,7 +79,10 @@ class AuditLogListItem(BaseModel):
     id: int = Field(..., description="Audit log entry ID")
     document_id: int = Field(..., description="Document ID")
     created_at: str = Field(..., description="Timestamp (ISO)")
-    audit_target: str = Field(..., description="epc | companies_house | hm_land_registry | financial")
+    audit_target: str = Field(
+        ...,
+        description="epc | companies_house | hm_land_registry | financial | vision_poc (GPT-4o multimodal POC)",
+    )
     verification_status: str = Field(..., description="VERIFIED | DISCREPANCY_FLAG | PENDING_HUMAN_REVIEW | etc.")
     filename: str = Field(default="", description="Document filename")
 

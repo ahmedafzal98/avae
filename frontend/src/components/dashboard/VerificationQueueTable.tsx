@@ -28,6 +28,7 @@ function formatAuditTarget(auditTarget: string): string {
     epc: "EPC",
     hm_land_registry: "Land Registry",
     financial: "Financial",
+    vision_poc: "Vision POC",
   };
   return map[auditTarget] ?? auditTarget;
 }
