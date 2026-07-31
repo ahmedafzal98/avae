@@ -9,8 +9,8 @@ class Settings(BaseSettings):
     """Application settings with environment variable support"""
     
     # AWS Configuration
-    aws_access_key_id: str
-    aws_secret_access_key: str
+    aws_access_key_id: Optional[str] = None
+    aws_secret_access_key: Optional[str] = None
     aws_region: str = "us-east-1"
     s3_bucket_name: str
     sqs_queue_url: str
@@ -144,6 +144,26 @@ class Settings(BaseSettings):
     def effective_sqs_queue_url(self) -> str:
         """Queue URL to use — prefers SQS_QUEUE_URL_LOCAL for local dev."""
         return self.sqs_queue_url_local or self.sqs_queue_url
+
+    def is_local_storage_mode(self) -> bool:
+        """
+        Use filesystem + Redis queue instead of S3/SQS.
+        Enabled when USE_LOCAL_STORAGE=true, or when AWS env vars are still placeholders.
+        """
+        explicit = os.environ.get("USE_LOCAL_STORAGE", "").lower()
+        if explicit == "true":
+            return True
+        if explicit == "false":
+            return False
+        key = (self.aws_access_key_id or "").strip()
+        bucket = (self.s3_bucket_name or "").strip()
+        return (
+            not key
+            or "your-aws" in key
+            or key == "your-aws-access-key-id"
+            or not bucket
+            or bucket.startswith("your-")
+        )
 
 
 # Global settings instance

@@ -22,8 +22,8 @@ function UploadPageContent() {
   const isRemediationMode = Boolean(remediationCheckpointId);
 
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  /** Default Vision POC for multimodal / Arabic / ID demos; switch to Companies House for UK registry checks */
-  const [auditTarget, setAuditTarget] = useState<AuditTarget>("vision_poc");
+  /** Default Companies House for UK registry verification; use Vision POC for IDs / Arabic docs */
+  const [auditTarget, setAuditTarget] = useState<AuditTarget>("companies_house");
   const [taskIds, setTaskIds] = useState<string[]>([]);
 
   const upload = useUpload();

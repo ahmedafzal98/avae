@@ -13,6 +13,13 @@ def field_has_value(v: Any) -> bool:
     return True
 
 
+def extraction_has_data(data: dict[str, Any] | None) -> bool:
+    """True if structured extraction produced at least one non-empty field."""
+    if not data or not isinstance(data, dict):
+        return False
+    return any(field_has_value(v) for v in data.values())
+
+
 def strip_empty_extraction_fields(data: dict[str, Any] | None) -> dict[str, Any]:
     """
     Remove keys whose values are None, blank strings, or empty collections.

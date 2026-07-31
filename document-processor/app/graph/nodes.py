@@ -16,7 +16,7 @@ from app.dependencies import redis_client
 from app.database import SessionLocal
 from app.db_models import Document, AuditLog
 from app.extraction_service import extract_structured
-from app.extraction_utils import strip_empty_extraction_fields
+from app.extraction_utils import strip_empty_extraction_fields, extraction_has_data
 from app.vision_extraction_service import extract_structured_vision
 from app.clients import fetch_company, fetch_land_data
 from app.verification import verify_extraction
@@ -486,20 +486,19 @@ def persist(state: AVAEState) -> dict[str, Any]:
         except Exception:
             pass
 
-    # Audit log
+    # Audit log — always persist for traceability (even when extraction is empty)
     db = SessionLocal()
     try:
-        if extracted_json is not None:
-            audit_log = AuditLog(
-                document_id=int(task_id),
-                audit_target=audit_target,
-                extracted_json=extracted_json,
-                api_response_json=api_response,
-                verification_status=verification_status,
-                discrepancy_flags=discrepancy_flags,
-                fields_compared=fields_compared,
-            )
-            db.add(audit_log)
+        audit_log = AuditLog(
+            document_id=int(task_id),
+            audit_target=audit_target,
+            extracted_json=extracted_json if isinstance(extracted_json, dict) else {},
+            api_response_json=api_response,
+            verification_status=verification_status,
+            discrepancy_flags=discrepancy_flags,
+            fields_compared=fields_compared,
+        )
+        db.add(audit_log)
         db.commit()
     except Exception as db_err:
         logger.error(f"❌ Failed to save audit_log: {db_err}")
@@ -522,7 +521,13 @@ def persist(state: AVAEState) -> dict[str, Any]:
     )
 
     # Task 3.4: VERIFIED/EXTRACTED → COMPLETED; DISCREPANCY_FLAG → PENDING_HUMAN_REVIEW
-    doc_status = "COMPLETED" if verification_status in (VERIFIED, EXTRACTED) else "PENDING_HUMAN_REVIEW"
+    if not extraction_has_data(extracted_json if isinstance(extracted_json, dict) else None):
+        doc_status = "FAILED"
+        verification_status = verification_status or DISCREPANCY_FLAG
+    elif verification_status in (VERIFIED, EXTRACTED):
+        doc_status = "COMPLETED"
+    else:
+        doc_status = "PENDING_HUMAN_REVIEW"
 
     # Redis
     redis_client.setex(
@@ -547,6 +552,12 @@ def persist(state: AVAEState) -> dict[str, Any]:
             document.extraction_time_seconds = extraction_time
             document.completed_at = end_time
             document.prompt = prompt or None
+            if doc_status == "FAILED":
+                document.error_message = (
+                    "Structured extraction produced no data. "
+                    "Check OPENAI_API_KEY and re-upload with the correct audit target "
+                    "(e.g. companies_house for UK company verification)."
+                )
             db.commit()
             logger.info(f"💾 Saved result to PostgreSQL (document_id={task_id})")
     except Exception as db_err:

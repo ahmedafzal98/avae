@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from app.api_registry import AuditTarget
+from app.extraction_utils import extraction_has_data
 
 logger = logging.getLogger(__name__)
 
@@ -307,6 +308,19 @@ def verify_extraction(
                 discrepancy_flags=[{"field": "audit_target", "extracted": audit_target, "api": "Unknown target"}],
                 fields_compared=[],
             )
+
+    if not extraction_has_data(extracted_json):
+        return VerificationResult(
+            status=DISCREPANCY_FLAG,
+            discrepancy_flags=[
+                {
+                    "field": "extraction",
+                    "extracted": "failed or empty",
+                    "api": "Structured extraction produced no data",
+                }
+            ],
+            fields_compared=[],
+        )
 
     if api_response_json is None:
         # No external registry: financial docs, or multimodal vision_poc POC

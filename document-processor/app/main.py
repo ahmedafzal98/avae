@@ -1101,10 +1101,32 @@ async def get_document_verification(document_id: int, db: AsyncSession = Depends
     )
     audit = result.scalar_one_or_none()
     if not audit:
-        raise HTTPException(
-            status_code=404,
-            detail="No audit log found for document; verification data not yet available",
-        )
+        doc_result = await db.execute(select(Document).where(Document.id == document_id))
+        document = doc_result.scalar_one_or_none()
+        if not document:
+            raise HTTPException(status_code=404, detail="Document not found")
+        if document.status == "PROCESSING":
+            raise HTTPException(
+                status_code=404,
+                detail="Document is still processing; verification data not yet available",
+            )
+        hints: list[str] = []
+        if document.audit_target == "vision_poc":
+            hints.append(
+                "This document was uploaded as Vision POC (no Companies House lookup). "
+                "Re-upload with Audit Target: Companies House."
+            )
+        openai_key = (settings.openai_api_key or "").strip()
+        if not openai_key or openai_key.startswith("your-"):
+            hints.append("OPENAI_API_KEY is missing or still a placeholder.")
+        if document.audit_target == "companies_house" and not settings.companies_house_api_key:
+            hints.append("COMPANIES_HOUSE_API_KEY is not configured.")
+        if document.status == "FAILED" and document.error_message:
+            hints.append(document.error_message)
+        detail = "No audit log found for document; verification data not yet available."
+        if hints:
+            detail += " " + " ".join(hints)
+        raise HTTPException(status_code=404, detail=detail)
 
     extracted = audit.extracted_json or {}
     api_resp = audit.api_response_json

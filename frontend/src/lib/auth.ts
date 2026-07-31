@@ -7,12 +7,18 @@
 
 import { useAuth, useUser } from "@clerk/nextjs";
 import { useCallback } from "react";
+import { isDevAuthBypass } from "@/lib/dev-auth";
+
+const DEV_SKIP = isDevAuthBypass();
 
 /**
  * Returns a function to fetch the current session token for API requests.
  * Use with apiFetch / apiJson: const getToken = useAuthToken(); const token = await getToken();
  */
 export function useAuthToken(): () => Promise<string | null> {
+  if (DEV_SKIP) {
+    return useCallback(async () => null, []);
+  }
   const { getToken } = useAuth();
   return useCallback(() => getToken(), [getToken]);
 }
@@ -22,6 +28,9 @@ export function useAuthToken(): () => Promise<string | null> {
  * Uses a role label (from Clerk or "Compliance Officer"); appends email in parentheses when available.
  */
 export function useOfficerLevel(): string {
+  if (DEV_SKIP) {
+    return "Compliance Officer (dev@local)";
+  }
   const { user } = useUser();
   const role = user?.publicMetadata?.role;
   const email = user?.primaryEmailAddress?.emailAddress;

@@ -3,6 +3,7 @@ import { Inter, JetBrains_Mono, Noto_Sans_Arabic } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 import { Toaster } from "sonner";
 import { Providers } from "@/components/providers";
+import { isDevAuthBypass } from "@/lib/dev-auth";
 import "./globals.css";
 
 const inter = Inter({
@@ -39,10 +40,14 @@ export default function RootLayout({
       <body
         className={`${inter.variable} ${jetbrainsMono.variable} ${notoSansArabic.variable} font-sans antialiased`}
       >
-        <ClerkProvider>
+        {isDevAuthBypass() ? (
           <Providers>{children}</Providers>
-          <Toaster position="top-right" richColors closeButton />
-        </ClerkProvider>
+        ) : (
+          <ClerkProvider>
+            <Providers>{children}</Providers>
+          </ClerkProvider>
+        )}
+        <Toaster position="top-right" richColors closeButton />
       </body>
     </html>
   );

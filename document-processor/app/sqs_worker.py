@@ -156,9 +156,13 @@ def worker_loop():
     logger.info("=" * 70)
     logger.info("🚀 SQS Worker Started")
     logger.info("=" * 70)
-    logger.info(f"Region: {settings.aws_region}")
-    logger.info(f"Queue: {settings.effective_sqs_queue_url}")
-    logger.info(f"S3 Bucket: {settings.s3_bucket_name}")
+    if settings.is_local_storage_mode():
+        logger.info("Mode: LOCAL (filesystem + Redis queue — no AWS)")
+        logger.info(f"Storage: {settings.storage_path}")
+    else:
+        logger.info(f"Region: {settings.aws_region}")
+        logger.info(f"Queue: {settings.effective_sqs_queue_url}")
+        logger.info(f"S3 Bucket: {settings.s3_bucket_name}")
     logger.info("=" * 70)
     logger.info("Waiting for messages... (Press Ctrl+C to stop)")
     logger.info("")
@@ -172,7 +176,10 @@ def worker_loop():
     
     while not shutdown_requested:
         try:
-            logger.info("Polling SQS for messages...")
+            logger.info(
+                "Polling %s for messages...",
+                "local Redis queue" if settings.is_local_storage_mode() else "SQS",
+            )
             messages = aws_services.receive_messages_from_sqs(
                 max_messages=1,
                 wait_time_seconds=5,  # Shorter for faster feedback when debugging

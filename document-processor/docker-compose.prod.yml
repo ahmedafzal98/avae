@@ -1,0 +1,11 @@
+services:
+  app:
+    build: .
+    container_name: avae-backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    env_file:
+      - ../.env.production
+    environment:
+      - USE_LOCAL_STORAGE=false

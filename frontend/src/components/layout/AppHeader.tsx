@@ -6,6 +6,8 @@ import { Bell, HelpCircle } from "lucide-react";
 import { UserButton, SignInButton, Show } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { isDevAuthBypass } from "@/lib/dev-auth";
+import { DevAuthHeader } from "@/components/DevAuthHeader";
 
 interface AppHeaderProps {
   /** Optional override for breadcrumb (e.g. page-specific title) */
@@ -34,38 +36,44 @@ export function AppHeader({ title }: AppHeaderProps) {
       </div>
 
       <div className="flex items-center gap-3 shrink-0">
-        <Show when="signed-out">
-          <SignInButton mode="redirect" forceRedirectUrl="/">
-            <Button variant="outline" size="sm">
-              Sign in
-            </Button>
-          </SignInButton>
-        </Show>
-        <Show when="signed-in">
-          <div className="flex items-center gap-2 text-body text-muted-foreground">
-            <span className="hidden sm:inline">UK Financial Services</span>
-            <span
-              className="size-2 rounded-full bg-tertiary"
-              aria-hidden
-              title="Online"
-            />
-          </div>
-          <div className="flex items-center gap-1">
-            <Button variant="ghost" size="icon-sm" aria-label="Notifications">
-              <Bell className="size-4" />
-            </Button>
-            <Button variant="ghost" size="icon-sm" aria-label="Help">
-              <HelpCircle className="size-4" />
-            </Button>
-          </div>
-          <UserButton
-            appearance={{
-              elements: {
-                avatarBox: "size-8",
-              },
-            }}
-          />
-        </Show>
+        {isDevAuthBypass() ? (
+          <DevAuthHeader />
+        ) : (
+          <>
+            <Show when="signed-out">
+              <SignInButton mode="redirect" forceRedirectUrl="/">
+                <Button variant="outline" size="sm">
+                  Sign in
+                </Button>
+              </SignInButton>
+            </Show>
+            <Show when="signed-in">
+              <div className="flex items-center gap-2 text-body text-muted-foreground">
+                <span className="hidden sm:inline">UK Financial Services</span>
+                <span
+                  className="size-2 rounded-full bg-tertiary"
+                  aria-hidden
+                  title="Online"
+                />
+              </div>
+              <div className="flex items-center gap-1">
+                <Button variant="ghost" size="icon-sm" aria-label="Notifications">
+                  <Bell className="size-4" />
+                </Button>
+                <Button variant="ghost" size="icon-sm" aria-label="Help">
+                  <HelpCircle className="size-4" />
+                </Button>
+              </div>
+              <UserButton
+                appearance={{
+                  elements: {
+                    avatarBox: "size-8",
+                  },
+                }}
+              />
+            </Show>
+          </>
+        )}
       </div>
     </header>
   );
