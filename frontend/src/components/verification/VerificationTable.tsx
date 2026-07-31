@@ -22,7 +22,7 @@ import { cn } from "@/lib/utils";
 
 const columnHelper = createColumnHelper<VerificationFieldRow>();
 
-const columns: ColumnDef<VerificationFieldRow, unknown>[] = [
+const columns: ColumnDef<VerificationFieldRow, any>[] = [
   columnHelper.accessor("field", {
     header: "FIELD NAME",
     cell: ({ getValue }) => (

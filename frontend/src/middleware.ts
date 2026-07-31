@@ -1,6 +1,6 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
+import type { NextFetchEvent, NextRequest } from "next/server";
 import { isDevAuthBypass } from "@/lib/dev-auth";
 
 const isProtectedRoute = createRouteMatcher([
@@ -19,11 +19,11 @@ const clerkAuth = clerkMiddleware(async (auth, req) => {
   }
 });
 
-export default function middleware(req: NextRequest) {
+export default function middleware(req: NextRequest, event: NextFetchEvent) {
   if (isDevAuthBypass()) {
     return NextResponse.next();
   }
-  return clerkAuth(req);
+  return clerkAuth(req, event);
 }
 
 export const config = {

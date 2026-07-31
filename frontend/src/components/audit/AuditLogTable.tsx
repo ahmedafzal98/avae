@@ -194,7 +194,7 @@ function AuditLogDetailPanel({ detail }: { detail: AuditLogDetailResponse }) {
 function makeColumns(
   expandedId: number | null,
   onToggleExpand: (id: number) => void
-): ColumnDef<AuditLogListItem, unknown>[] {
+): ColumnDef<AuditLogListItem, any>[] {
   return [
   {
     id: "expand",

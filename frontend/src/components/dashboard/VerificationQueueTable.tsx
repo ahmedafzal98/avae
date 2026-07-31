@@ -50,7 +50,7 @@ function StatusPill({ status }: { status: string }) {
     <span
       className={cn(
         "inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider",
-        styles
+        styles,
       )}
     >
       {label}
@@ -61,13 +61,17 @@ function StatusPill({ status }: { status: string }) {
 function UrgencyDots({ count }: { count: number }) {
   const level = Math.min(5, Math.max(1, Math.ceil(count / 2) + 1));
   return (
-    <div className="flex gap-0.5" role="img" aria-label={`${count} discrepancies`}>
+    <div
+      className="flex gap-0.5"
+      role="img"
+      aria-label={`${count} discrepancies`}
+    >
       {Array.from({ length: 5 }).map((_, i) => (
         <div
           key={i}
           className={cn(
             "size-1.5 rounded-full",
-            i < level ? "bg-[#0f172a]" : "bg-[#f1f5f9]"
+            i < level ? "bg-[#0f172a]" : "bg-[#f1f5f9]",
           )}
         />
       ))}
@@ -78,8 +82,7 @@ function UrgencyDots({ count }: { count: number }) {
 export function VerificationQueueTable() {
   const { data, isLoading, error } = useQuery({
     queryKey: ["dashboard-hitl-checkpoints"],
-    queryFn: () =>
-      getHitlCheckpoints({ page: 1, page_size: 10 }),
+    queryFn: () => getHitlCheckpoints({ page: 1, page_size: 10 }),
   });
 
   const checkpoints = data?.checkpoints ?? [];
@@ -155,37 +158,51 @@ export function VerificationQueueTable() {
                       <Button
                         variant="ghost"
                         size="icon-sm"
-                        asChild
+                        render={
+                          <Link
+                            href={`/hitl?document_id=${item.checkpoint_id}`}
+                            aria-label={`View ${item.checkpoint_id}`}
+                          />
+                        }
                         className="text-[#64748b] hover:bg-[#f1f5f9] hover:text-[#0f172a] focus-visible:ring-2 focus-visible:ring-[#475569] focus-visible:ring-offset-0"
                       >
-                        <Link
-                          href={`/hitl?document_id=${item.checkpoint_id}`}
-                          aria-label={`View ${item.checkpoint_id}`}
-                        >
-                          <Eye className="size-4" strokeWidth={1.5} />
-                        </Link>
+                        <Eye className="size-4" strokeWidth={1.5} />
                       </Button>
                       <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon-sm"
-                            className="text-[#64748b] hover:bg-[#f1f5f9] hover:text-[#0f172a] focus-visible:ring-2 focus-visible:ring-[#475569] focus-visible:ring-offset-0"
-                            aria-label="More actions"
-                          >
-                            <MoreHorizontal className="size-4" strokeWidth={1.5} />
-                          </Button>
+                        <DropdownMenuTrigger
+                          render={
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              className="text-[#64748b] hover:bg-[#f1f5f9] hover:text-[#0f172a] focus-visible:ring-2 focus-visible:ring-[#475569] focus-visible:ring-offset-0"
+                              aria-label="More actions"
+                            />
+                          }
+                        >
+                          <MoreHorizontal
+                            className="size-4"
+                            strokeWidth={1.5}
+                          />
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="border-[#e2e8f0]">
-                          <DropdownMenuItem asChild>
-                            <Link href={`/hitl?document_id=${item.checkpoint_id}`}>
-                              Review
-                            </Link>
+                        <DropdownMenuContent
+                          align="end"
+                          className="border-[#e2e8f0]"
+                        >
+                          <DropdownMenuItem
+                            render={
+                              <Link
+                                href={`/hitl?document_id=${item.checkpoint_id}`}
+                              />
+                            }
+                          >
+                            Review
                           </DropdownMenuItem>
-                          <DropdownMenuItem asChild>
-                            <Link href={`/audit?search=${item.checkpoint_id}`}>
-                              View in Audit Log
-                            </Link>
+                          <DropdownMenuItem
+                            render={
+                              <Link href={`/audit?search=${item.checkpoint_id}`} />
+                            }
+                          >
+                            View in Audit Log
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>

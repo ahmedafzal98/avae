@@ -52,7 +52,8 @@ function AuditLogContent() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [status, setStatus] = useState<string>(STATUS_ALL);
-  const [dateRangePreset, setDateRangePreset] = useState<string>(DATE_RANGE_ALL);
+  const [dateRangePreset, setDateRangePreset] =
+    useState<string>(DATE_RANGE_ALL);
   const [customDateFrom, setCustomDateFrom] = useState<string>("");
   const [customDateTo, setCustomDateTo] = useState<string>("");
   const [searchInput, setSearchInput] = useState("");
@@ -67,14 +68,16 @@ function AuditLogContent() {
   }, [searchInput]);
 
   const { date_from, date_to } = useMemo(() => {
-    if (dateRangePreset === DATE_RANGE_ALL) return { date_from: undefined, date_to: undefined };
+    if (dateRangePreset === DATE_RANGE_ALL)
+      return { date_from: undefined, date_to: undefined };
     if (dateRangePreset === "custom") {
       const from = customDateFrom?.trim() || undefined;
       const to = customDateTo?.trim() || undefined;
       return { date_from: from, date_to: to };
     }
     const days = parseInt(dateRangePreset, 10);
-    if (Number.isNaN(days) || days < 1) return { date_from: undefined, date_to: undefined };
+    if (Number.isNaN(days) || days < 1)
+      return { date_from: undefined, date_to: undefined };
     const end = new Date();
     const start = new Date();
     start.setDate(start.getDate() - days);
@@ -137,24 +140,31 @@ function AuditLogContent() {
           Audit Log
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          System-wide verification records — filter by status, date range, and search
+          System-wide verification records — filter by status, date range, and
+          search
         </p>
       </div>
 
       {/* Filters row: Task 7.3 status; 7.4 date range; 7.5 search */}
       <div className="mb-4 flex flex-wrap items-end gap-4 rounded-lg border border-border bg-muted/30 px-4 py-3">
         <div className="space-y-1.5">
-          <label htmlFor="audit-status" className="block text-xs font-medium text-muted-foreground">
+          <label
+            htmlFor="audit-status"
+            className="block text-xs font-medium text-muted-foreground"
+          >
             Status
           </label>
           <Select
             value={status}
             onValueChange={(v) => {
-              setStatus(v);
+              setStatus(v ?? STATUS_ALL);
               setPage(1);
             }}
           >
-            <SelectTrigger id="audit-status" className="w-full min-w-[140px] sm:w-[180px]">
+            <SelectTrigger
+              id="audit-status"
+              className="w-full min-w-[140px] sm:w-[180px]"
+            >
               <SelectValue placeholder="All Entries" />
             </SelectTrigger>
             <SelectContent>
@@ -167,17 +177,23 @@ function AuditLogContent() {
           </Select>
         </div>
         <div className="space-y-1.5">
-          <label htmlFor="audit-date-range" className="block text-xs font-medium text-muted-foreground">
+          <label
+            htmlFor="audit-date-range"
+            className="block text-xs font-medium text-muted-foreground"
+          >
             Date range
           </label>
           <Select
             value={dateRangePreset}
             onValueChange={(v) => {
-              setDateRangePreset(v);
+              setDateRangePreset(v ?? DATE_RANGE_ALL);
               setPage(1);
             }}
           >
-            <SelectTrigger id="audit-date-range" className="w-full min-w-[140px] sm:w-[160px]">
+            <SelectTrigger
+              id="audit-date-range"
+              className="w-full min-w-[140px] sm:w-[160px]"
+            >
               <SelectValue placeholder="All time" />
             </SelectTrigger>
             <SelectContent>
@@ -192,7 +208,10 @@ function AuditLogContent() {
         {dateRangePreset === "custom" && (
           <>
             <div className="space-y-1.5">
-              <label htmlFor="audit-date-from" className="block text-xs font-medium text-muted-foreground">
+              <label
+                htmlFor="audit-date-from"
+                className="block text-xs font-medium text-muted-foreground"
+              >
                 From
               </label>
               <Input
@@ -207,7 +226,10 @@ function AuditLogContent() {
               />
             </div>
             <div className="space-y-1.5">
-              <label htmlFor="audit-date-to" className="block text-xs font-medium text-muted-foreground">
+              <label
+                htmlFor="audit-date-to"
+                className="block text-xs font-medium text-muted-foreground"
+              >
                 To
               </label>
               <Input
@@ -224,7 +246,10 @@ function AuditLogContent() {
           </>
         )}
         <div className="flex-1 min-w-0 w-full sm:min-w-[200px] sm:max-w-[280px] space-y-1.5">
-          <label htmlFor="audit-search" className="block text-xs font-medium text-muted-foreground">
+          <label
+            htmlFor="audit-search"
+            className="block text-xs font-medium text-muted-foreground"
+          >
             Search
           </label>
           <Input
@@ -269,7 +294,10 @@ function AuditLogContent() {
               </span>
             )}
             <div className="flex items-center gap-1.5">
-              <label htmlFor="audit-page-size" className="text-xs text-muted-foreground whitespace-nowrap">
+              <label
+                htmlFor="audit-page-size"
+                className="text-xs text-muted-foreground whitespace-nowrap"
+              >
                 Per page
               </label>
               <Select

@@ -121,7 +121,7 @@ export function CheckpointList({ className }: CheckpointListProps) {
           <Select
             value={status}
             onValueChange={(v) => {
-              setStatus(v);
+              setStatus(v ?? ALL);
               setPage(1);
             }}
           >
@@ -144,7 +144,7 @@ export function CheckpointList({ className }: CheckpointListProps) {
           <Select
             value={auditTarget}
             onValueChange={(v) => {
-              setAuditTarget(v);
+              setAuditTarget(v ?? ALL);
               setPage(1);
             }}
           >
