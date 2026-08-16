@@ -62,6 +62,19 @@ def apply_override(checkpoint_id: str, field: str | None = None) -> dict[str, An
     try:
         fork_config = graph.update_state(config, values)
         final_state = graph.invoke(None, fork_config)
+
+        # Update Document status to COMPLETED so it no longer counts as pending review
+        db = SessionLocal()
+        try:
+            doc = db.query(Document).filter(Document.id == int(checkpoint_id)).first()
+            if doc:
+                doc.status = "COMPLETED"
+                db.commit()
+                from app.dependencies import redis_client
+                redis_client.hset(f"task:{checkpoint_id}", "status", "COMPLETED")
+        finally:
+            db.close()
+
         return {
             "success": True,
             "message": "Override applied; document persisted.",
@@ -99,6 +112,19 @@ def apply_manual_correction(checkpoint_id: str, corrections: dict[str, Any]) -> 
     try:
         fork_config = graph.update_state(config, values)
         final_state = graph.invoke(None, fork_config)
+
+        # Update Document status to COMPLETED so it no longer counts as pending review
+        db = SessionLocal()
+        try:
+            doc = db.query(Document).filter(Document.id == int(checkpoint_id)).first()
+            if doc:
+                doc.status = "COMPLETED"
+                db.commit()
+                from app.dependencies import redis_client
+                redis_client.hset(f"task:{checkpoint_id}", "status", "COMPLETED")
+        finally:
+            db.close()
+
         return {
             "success": True,
             "message": "Manual correction applied; document persisted.",
