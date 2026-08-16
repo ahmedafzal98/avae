@@ -62,6 +62,35 @@ def apply_override(checkpoint_id: str, field: str | None = None) -> dict[str, An
     try:
         fork_config = graph.update_state(config, values)
         final_state = graph.invoke(None, fork_config)
+
+        # Update Document status and log human override audit entry
+        db = SessionLocal()
+        try:
+            doc = db.query(Document).filter(Document.id == int(checkpoint_id)).first()
+            latest_audit = (
+                db.query(AuditLog)
+                .filter(AuditLog.document_id == int(checkpoint_id))
+                .order_by(AuditLog.id.desc())
+                .first()
+            )
+            if doc:
+                doc.status = "COMPLETED"
+                audit_entry = AuditLog(
+                    document_id=int(checkpoint_id),
+                    audit_target=doc.audit_target or (latest_audit.audit_target if latest_audit else "epc"),
+                    extracted_json=latest_audit.extracted_json if latest_audit else {},
+                    api_response_json=latest_audit.api_response_json if latest_audit else None,
+                    verification_status="VERIFIED",
+                    discrepancy_flags=[],
+                    fields_compared=latest_audit.fields_compared if latest_audit else [],
+                )
+                db.add(audit_entry)
+                db.commit()
+                from app.dependencies import redis_client
+                redis_client.hset(f"task:{checkpoint_id}", "status", "COMPLETED")
+        finally:
+            db.close()
+
         return {
             "success": True,
             "message": "Override applied; document persisted.",
@@ -99,6 +128,35 @@ def apply_manual_correction(checkpoint_id: str, corrections: dict[str, Any]) -> 
     try:
         fork_config = graph.update_state(config, values)
         final_state = graph.invoke(None, fork_config)
+
+        # Update Document status and log human correction audit entry
+        db = SessionLocal()
+        try:
+            doc = db.query(Document).filter(Document.id == int(checkpoint_id)).first()
+            latest_audit = (
+                db.query(AuditLog)
+                .filter(AuditLog.document_id == int(checkpoint_id))
+                .order_by(AuditLog.id.desc())
+                .first()
+            )
+            if doc:
+                doc.status = "COMPLETED"
+                audit_entry = AuditLog(
+                    document_id=int(checkpoint_id),
+                    audit_target=doc.audit_target or (latest_audit.audit_target if latest_audit else "epc"),
+                    extracted_json=extracted,
+                    api_response_json=latest_audit.api_response_json if latest_audit else None,
+                    verification_status="VERIFIED",
+                    discrepancy_flags=[],
+                    fields_compared=latest_audit.fields_compared if latest_audit else [],
+                )
+                db.add(audit_entry)
+                db.commit()
+                from app.dependencies import redis_client
+                redis_client.hset(f"task:{checkpoint_id}", "status", "COMPLETED")
+        finally:
+            db.close()
+
         return {
             "success": True,
             "message": "Manual correction applied; document persisted.",
