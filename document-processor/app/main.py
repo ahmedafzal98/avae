@@ -113,7 +113,7 @@ async def root():
     }
 
 
-@app.get("/health", response_model=HealthResponse, tags=["Health"])
+@app.api_route("/health", methods=["GET", "HEAD"], response_model=HealthResponse, tags=["Health"])
 @timeit
 async def health_check():
     """
