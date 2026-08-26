@@ -16,6 +16,7 @@ import { FileDown } from "lucide-react";
 import { AuditLogTable } from "@/components/audit/AuditLogTable";
 import { AuditHealthIndex } from "@/components/audit/AuditHealthIndex";
 import { PendingReconciliation } from "@/components/audit/PendingReconciliation";
+import { useAuthToken } from "@/lib/auth";
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50] as const;
 const DEFAULT_PAGE_SIZE = 20;
@@ -58,6 +59,7 @@ function AuditLogContent() {
   const [customDateTo, setCustomDateTo] = useState<string>("");
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
+  const getToken = useAuthToken();
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -94,15 +96,20 @@ function AuditLogContent() {
       page,
       pageSize,
     ],
-    queryFn: () =>
-      getAuditLogs({
-        page,
-        page_size: pageSize,
-        status: status === STATUS_ALL ? undefined : status,
-        date_from: date_from ?? undefined,
-        date_to: date_to ?? undefined,
-        search: search || undefined,
-      }),
+    queryFn: async () => {
+      const token = await getToken();
+      return getAuditLogs(
+        {
+          page,
+          page_size: pageSize,
+          status: status === STATUS_ALL ? undefined : status,
+          date_from: date_from ?? undefined,
+          date_to: date_to ?? undefined,
+          search: search || undefined,
+        },
+        { token },
+      );
+    },
   });
 
   const total = data?.total ?? 0;

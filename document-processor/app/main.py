@@ -9,7 +9,7 @@ from datetime import datetime
 from typing import List, Optional
 from pathlib import Path
 
-from fastapi import FastAPI, File, UploadFile, HTTPException, Request, status
+from fastapi import FastAPI, APIRouter, File, UploadFile, HTTPException, Request, status
 from fastapi.responses import StreamingResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -21,7 +21,7 @@ from app.schemas_api import (
 )
 from app.dependencies import (
     redis_client, timeit, rate_limit, log_request,
-    get_all_tasks_generator, stream_task_results
+    get_all_tasks_generator, stream_task_results, get_current_user
 )
 from app.aws_services import aws_services
 from app.database import init_db, get_async_db
@@ -81,6 +81,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# All routes registered on this router require a valid Clerk JWT (see get_current_user).
+# GET / and GET /health are intentionally kept on `app` directly, unprotected.
+protected_router = APIRouter(dependencies=[Depends(get_current_user)])
 
 
 # ============= STARTUP EVENT =============
@@ -167,7 +171,7 @@ async def health_check():
         )
 
 
-@app.get("/debug/queue", tags=["Debug"])
+@protected_router.get("/debug/queue", tags=["Debug"])
 async def debug_queue():
     """
     Diagnostic: returns the SQS queue URL the API uses.
@@ -176,7 +180,7 @@ async def debug_queue():
     return {"sqs_queue_url": settings.effective_sqs_queue_url}
 
 
-@app.post("/upload", response_model=UploadResponse, status_code=status.HTTP_202_ACCEPTED, tags=["Upload"])
+@protected_router.post("/upload", response_model=UploadResponse, status_code=status.HTTP_202_ACCEPTED, tags=["Upload"])
 @timeit
 @log_request
 @rate_limit(max_requests=10, window_seconds=60)
@@ -389,7 +393,7 @@ async def upload_files(
     )
 
 
-@app.get("/status/{task_id}", response_model=TaskStatusResponse, tags=["Status"])
+@protected_router.get("/status/{task_id}", response_model=TaskStatusResponse, tags=["Status"])
 @timeit
 async def get_task_status(task_id: str):
     """
@@ -421,7 +425,7 @@ async def get_task_status(task_id: str):
     )
 
 
-@app.get("/result/{task_id}", response_model=PDFExtractionResult, tags=["Results"])
+@protected_router.get("/result/{task_id}", response_model=PDFExtractionResult, tags=["Results"])
 @timeit
 async def get_task_result(task_id: str, db: AsyncSession = Depends(get_async_db)):
     """
@@ -478,7 +482,7 @@ async def get_task_result(task_id: str, db: AsyncSession = Depends(get_async_db)
     )
 
 
-@app.get("/results/stream/{task_id}", tags=["Results"])
+@protected_router.get("/results/stream/{task_id}", tags=["Results"])
 @timeit
 async def stream_task_result(task_id: str):
     """
@@ -508,7 +512,7 @@ async def stream_task_result(task_id: str):
 # ============= HITL Endpoints (Task 5.2, 5.4) =============
 
 
-@app.get("/hitl/checkpoints/summary", response_model=CheckpointSummaryResponse, tags=["HITL"])
+@protected_router.get("/hitl/checkpoints/summary", response_model=CheckpointSummaryResponse, tags=["HITL"])
 def hitl_checkpoints_summary():
     """
     Summary counts for Pending Reconciliation card (Phase 7.8).
@@ -517,7 +521,7 @@ def hitl_checkpoints_summary():
     return CheckpointSummaryResponse(**result)
 
 
-@app.get("/hitl/checkpoints", response_model=CheckpointListResponse, tags=["HITL"])
+@protected_router.get("/hitl/checkpoints", response_model=CheckpointListResponse, tags=["HITL"])
 def hitl_list_checkpoints(
     status: Optional[str] = None,
     audit_target: Optional[str] = None,
@@ -565,7 +569,7 @@ def hitl_list_checkpoints(
     return CheckpointListResponse(**result)
 
 
-@app.get("/hitl/remediation-email/{checkpoint_id}", response_model=RemediationEmailDraft, tags=["HITL"])
+@protected_router.get("/hitl/remediation-email/{checkpoint_id}", response_model=RemediationEmailDraft, tags=["HITL"])
 def hitl_remediation_email(
     checkpoint_id: str,
     message: Optional[str] = None,
@@ -586,7 +590,7 @@ def hitl_remediation_email(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
-@app.get("/hitl/similar-overrides/{checkpoint_id}", tags=["HITL"])
+@protected_router.get("/hitl/similar-overrides/{checkpoint_id}", tags=["HITL"])
 def hitl_similar_overrides(
     checkpoint_id: str,
     field: Optional[str] = None,
@@ -599,7 +603,7 @@ def hitl_similar_overrides(
     return {"suggestions": []}
 
 
-@app.post("/hitl/expire-checkpoints", tags=["HITL"])
+@protected_router.post("/hitl/expire-checkpoints", tags=["HITL"])
 def hitl_expire_checkpoints():
     """
     Expire PENDING_HUMAN_REVIEW checkpoints older than TTL days (Task 5.5).
@@ -614,7 +618,7 @@ def hitl_expire_checkpoints():
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 
-@app.post("/hitl/override", response_model=HITLResponse, tags=["HITL"])
+@protected_router.post("/hitl/override", response_model=HITLResponse, tags=["HITL"])
 def hitl_override(req: OverrideRequest):
     """
     Override: accept extracted value(s) as-is. Officer takes responsibility.
@@ -630,7 +634,7 @@ def hitl_override(req: OverrideRequest):
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 
-@app.post("/hitl/manual-correction", response_model=HITLResponse, tags=["HITL"])
+@protected_router.post("/hitl/manual-correction", response_model=HITLResponse, tags=["HITL"])
 def hitl_manual_correction(req: ManualCorrectionRequest):
     """
     Manual Correction: officer corrects values; system re-verifies and persists.
@@ -645,7 +649,7 @@ def hitl_manual_correction(req: ManualCorrectionRequest):
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 
-@app.post("/hitl/request-client-remediation", response_model=HITLResponse, tags=["HITL"])
+@protected_router.post("/hitl/request-client-remediation", response_model=HITLResponse, tags=["HITL"])
 def hitl_request_client_remediation(req: RequestClientRemediationRequest):
     """
     Request Client Remediation: mark document as needing client fix. Pause until new upload.
@@ -663,7 +667,7 @@ def hitl_request_client_remediation(req: RequestClientRemediationRequest):
 # ============= Audit Log (Phase 7) =============
 
 
-@app.get("/audit-logs", response_model=AuditLogListResponse, tags=["Audit"])
+@protected_router.get("/audit-logs", response_model=AuditLogListResponse, tags=["Audit"])
 def get_audit_logs(
     status: Optional[str] = None,
     audit_target: Optional[str] = None,
@@ -709,7 +713,7 @@ def get_audit_logs(
     )
 
 
-@app.get("/audit-logs/stats", response_model=AuditHealthStatsResponse, tags=["Audit"])
+@protected_router.get("/audit-logs/stats", response_model=AuditHealthStatsResponse, tags=["Audit"])
 def get_audit_logs_stats(
     date_from: Optional[str] = None,
     date_to: Optional[str] = None,
@@ -724,7 +728,7 @@ def get_audit_logs_stats(
     return AuditHealthStatsResponse(**result)
 
 
-@app.get("/audit-logs/{audit_log_id}", response_model=AuditLogDetailResponse, tags=["Audit"])
+@protected_router.get("/audit-logs/{audit_log_id}", response_model=AuditLogDetailResponse, tags=["Audit"])
 def get_audit_log_detail_by_id(audit_log_id: int):
     """
     Full audit log entry for expand row (Phase 7.9).
@@ -735,7 +739,7 @@ def get_audit_log_detail_by_id(audit_log_id: int):
     return AuditLogDetailResponse(**detail)
 
 
-@app.get("/tasks", response_model=TaskListResponse, tags=["Tasks"])
+@protected_router.get("/tasks", response_model=TaskListResponse, tags=["Tasks"])
 @timeit
 async def list_tasks(page: int = 1, page_size: int = 50):
     """
@@ -794,7 +798,7 @@ async def list_tasks(page: int = 1, page_size: int = 50):
     )
 
 
-@app.delete("/task/{task_id}", tags=["Tasks"])
+@protected_router.delete("/task/{task_id}", tags=["Tasks"])
 @timeit
 async def delete_task(task_id: str, db: AsyncSession = Depends(get_async_db)):
     """
@@ -868,7 +872,7 @@ async def delete_task(task_id: str, db: AsyncSession = Depends(get_async_db)):
 
 # ============= POSTGRESQL CRUD ENDPOINTS =============
 
-@app.post("/users", response_model=UserResponse, status_code=status.HTTP_201_CREATED, tags=["Users"])
+@protected_router.post("/users", response_model=UserResponse, status_code=status.HTTP_201_CREATED, tags=["Users"])
 async def create_user(user: UserCreate, db: AsyncSession = Depends(get_async_db)):
     """
     Create a new user
@@ -893,7 +897,7 @@ async def create_user(user: UserCreate, db: AsyncSession = Depends(get_async_db)
     return db_user
 
 
-@app.get("/users/{user_id}", response_model=UserResponse, tags=["Users"])
+@protected_router.get("/users/{user_id}", response_model=UserResponse, tags=["Users"])
 async def get_user(user_id: int, db: AsyncSession = Depends(get_async_db)):
     """
     Get a user by ID
@@ -907,7 +911,7 @@ async def get_user(user_id: int, db: AsyncSession = Depends(get_async_db)):
     return user
 
 
-@app.post("/users/login", response_model=UserResponse, tags=["Users"])
+@protected_router.post("/users/login", response_model=UserResponse, tags=["Users"])
 async def login_or_register(
     email: str,
     name: str = "User",
@@ -934,14 +938,14 @@ async def login_or_register(
     return db_user
 
 
-@app.get("/documents", response_model=List[DocumentResponse], tags=["Documents"])
+@protected_router.get("/documents", response_model=List[DocumentResponse], tags=["Documents"])
 async def list_documents(
     user_id: int = 1,
     skip: int = 0,
     limit: int = 100,
     status_filter: Optional[str] = None,
     audit_target: Optional[str] = None,
-    db: AsyncSession = Depends(get_async_db)
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     List all documents with optional filtering
@@ -970,7 +974,7 @@ async def list_documents(
     return documents
 
 
-@app.get("/documents/{document_id}", response_model=DocumentResponse, tags=["Documents"])
+@protected_router.get("/documents/{document_id}", response_model=DocumentResponse, tags=["Documents"])
 async def get_document(document_id: int, db: AsyncSession = Depends(get_async_db)):
     """
     Get a document by ID
@@ -984,7 +988,7 @@ async def get_document(document_id: int, db: AsyncSession = Depends(get_async_db
     return document
 
 
-@app.get("/documents/{document_id}/pdf", tags=["Documents"])
+@protected_router.get("/documents/{document_id}/pdf", tags=["Documents"])
 async def get_document_pdf(document_id: int, db: AsyncSession = Depends(get_async_db)):
     """
     Stream PDF file from S3 for document preview (Phase 5, Task 5.3).
@@ -1082,7 +1086,7 @@ def _build_verification_rows(
     return rows
 
 
-@app.get("/documents/{document_id}/verification", response_model=DocumentVerificationResponse, tags=["Documents"])
+@protected_router.get("/documents/{document_id}/verification", response_model=DocumentVerificationResponse, tags=["Documents"])
 async def get_document_verification(document_id: int, db: AsyncSession = Depends(get_async_db)):
     """
     Get verification data for VerificationTable (Task 5.4).
@@ -1167,7 +1171,7 @@ async def get_document_verification(document_id: int, db: AsyncSession = Depends
     )
 
 
-@app.post("/documents/{document_id}/requeue", tags=["Documents"])
+@protected_router.post("/documents/{document_id}/requeue", tags=["Documents"])
 async def requeue_document(document_id: int, db: AsyncSession = Depends(get_async_db)):
     """
     Re-queue document for processing (Task 5.7 Re-run Extraction).
@@ -1240,7 +1244,7 @@ async def requeue_document(document_id: int, db: AsyncSession = Depends(get_asyn
 
 # ============= RAG CHAT ENDPOINTS =============
 
-@app.post("/chat", response_model=ChatResponse, tags=["Chat"])
+@protected_router.post("/chat", response_model=ChatResponse, tags=["Chat"])
 async def chat_with_documents(
     chat_request: ChatRequest,
     user_id: int,
@@ -1353,6 +1357,9 @@ async def chat_with_documents(
             status_code=500,
             detail=f"Chat service error: {str(e)}"
         )
+
+
+app.include_router(protected_router)
 
 
 # ============= ERROR HANDLERS =============

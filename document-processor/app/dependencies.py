@@ -5,6 +5,8 @@ import logging
 from typing import Generator, Dict, Any, Optional
 from datetime import datetime
 import redis
+import jwt
+from jwt import PyJWKClient
 from fastapi import Request, HTTPException
 from app.config import settings
 
@@ -41,6 +43,35 @@ def get_redis_client() -> redis.Redis:
 
 
 redis_client = get_redis_client()
+
+
+# ============= AUTH =============
+
+CLERK_JWKS_URL = "https://relative-swine-61.clerk.accounts.dev/.well-known/jwks.json"
+_clerk_jwks_client = PyJWKClient(CLERK_JWKS_URL)
+
+
+def get_current_user(request: Request) -> dict:
+    """Verify the Clerk-issued JWT on the Authorization header and return its payload."""
+    auth_header = request.headers.get("Authorization")
+    parts = auth_header.split(" ", 1) if auth_header else []
+    if len(parts) != 2 or parts[0] != "Bearer" or not parts[1]:
+        raise HTTPException(status_code=401, detail="Missing or invalid authorization header")
+
+    token = parts[1]
+
+    try:
+        signing_key = _clerk_jwks_client.get_signing_key_from_jwt(token)
+        payload = jwt.decode(
+            token,
+            signing_key.key,
+            algorithms=["RS256"],
+            options={"verify_aud": False},
+        )
+    except jwt.PyJWTError:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+
+    return payload
 
 
 # ============= DECORATORS =============
