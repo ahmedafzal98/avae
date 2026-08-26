@@ -31,9 +31,10 @@ function buildUrl(path: string): string {
  */
 export async function apiFetch(
   path: string,
-  options: ApiOptions = {}
+  options: ApiOptions = {},
 ): Promise<Response> {
   const { token, ...init } = options;
+  console.log(token);
   const url = buildUrl(path);
   const headers = new Headers(init.headers);
 
@@ -51,7 +52,7 @@ export class ApiError extends Error {
   constructor(
     message: string,
     public status: number,
-    public body?: unknown
+    public body?: unknown,
   ) {
     super(message);
     this.name = "ApiError";
@@ -63,7 +64,7 @@ export class ApiError extends Error {
  */
 export async function apiJson<T>(
   path: string,
-  options: ApiOptions = {}
+  options: ApiOptions = {},
 ): Promise<T> {
   const headers = new Headers(options.headers);
   if (
@@ -85,13 +86,20 @@ export async function apiJson<T>(
     }
     let msg: string | null = null;
     if (typeof body === "object" && body !== null) {
-      if ("detail" in body && typeof (body as { detail?: unknown }).detail === "string") {
+      if (
+        "detail" in body &&
+        typeof (body as { detail?: unknown }).detail === "string"
+      ) {
         msg = (body as { detail: string }).detail;
       } else if ("error" in body) {
         msg = String((body as { error?: string }).error);
       }
     }
-    throw new ApiError(msg || res.statusText || `Request failed: ${res.status}`, res.status, body);
+    throw new ApiError(
+      msg || res.statusText || `Request failed: ${res.status}`,
+      res.status,
+      body,
+    );
   }
 
   const text = await res.text();
@@ -132,7 +140,7 @@ export async function uploadFiles(
     token?: string | null;
     /** When set, single-file remediation upload for checkpoint (Task 4.8) */
     remediationForCheckpointId?: string | null;
-  }
+  },
 ): Promise<UploadResponse> {
   const {
     auditTarget,
@@ -229,11 +237,11 @@ export interface DocumentVerificationResponse {
  */
 export async function getDocumentVerification(
   documentId: number | string,
-  options: ApiOptions = {}
+  options: ApiOptions = {},
 ): Promise<DocumentVerificationResponse> {
   return apiJson<DocumentVerificationResponse>(
     `/api/documents/${documentId}/verification`,
-    { ...options, cache: "no-store" }
+    { ...options, cache: "no-store" },
   );
 }
 
@@ -269,18 +277,19 @@ export interface GetCheckpointsParams {
  */
 export async function getHitlCheckpoints(
   params: GetCheckpointsParams = {},
-  options: ApiOptions = {}
+  options: ApiOptions = {},
 ): Promise<CheckpointListResponse> {
   const search = new URLSearchParams();
   if (params.status) search.set("status", params.status);
   if (params.audit_target) search.set("audit_target", params.audit_target);
   if (params.page != null) search.set("page", String(params.page));
-  if (params.page_size != null) search.set("page_size", String(params.page_size));
+  if (params.page_size != null)
+    search.set("page_size", String(params.page_size));
 
   const qs = search.toString();
   return apiJson<CheckpointListResponse>(
     `/api/hitl/checkpoints${qs ? `?${qs}` : ""}`,
-    { ...options, cache: "no-store" }
+    { ...options, cache: "no-store" },
   );
 }
 
@@ -292,7 +301,7 @@ export interface CheckpointSummaryResponse {
 }
 
 export async function getHitlCheckpointsSummary(
-  options: ApiOptions = {}
+  options: ApiOptions = {},
 ): Promise<CheckpointSummaryResponse> {
   return apiJson<CheckpointSummaryResponse>("/api/hitl/checkpoints/summary", {
     ...options,
@@ -324,15 +333,16 @@ export interface SimilarOverrideSuggestion {
 export async function getSimilarOverrides(
   checkpointId: string,
   options: { field?: string | null } = {},
-  apiOptions: ApiOptions = {}
+  apiOptions: ApiOptions = {},
 ): Promise<{ suggestions: SimilarOverrideSuggestion[] }> {
   const params = new URLSearchParams();
-  if (options.field != null && options.field !== "") params.set("field", options.field);
+  if (options.field != null && options.field !== "")
+    params.set("field", options.field);
   const qs = params.toString();
 
   return apiJson<{ suggestions: SimilarOverrideSuggestion[] }>(
     `/api/hitl/similar-overrides/${encodeURIComponent(checkpointId)}${qs ? `?${qs}` : ""}`,
-    { ...apiOptions, cache: "no-store" }
+    { ...apiOptions, cache: "no-store" },
   );
 }
 
@@ -350,7 +360,7 @@ export interface HITLResponse {
 export async function hitlOverride(
   checkpointId: string,
   params?: { field?: string | null; justification?: string | null },
-  options: ApiOptions = {}
+  options: ApiOptions = {},
 ): Promise<HITLResponse> {
   const body: Record<string, unknown> = { checkpoint_id: checkpointId };
   if (params?.field != null) body.field = params.field;
@@ -366,7 +376,7 @@ export async function hitlOverride(
 export async function hitlManualCorrection(
   checkpointId: string,
   corrections: Record<string, unknown>,
-  options: ApiOptions = {}
+  options: ApiOptions = {},
 ): Promise<HITLResponse> {
   return apiJson<HITLResponse>("/api/hitl/manual-correction", {
     ...options,
@@ -384,12 +394,12 @@ export interface RemediationEmailDraft {
 export async function getRemediationEmailDraft(
   checkpointId: string,
   message?: string | null,
-  options: ApiOptions = {}
+  options: ApiOptions = {},
 ): Promise<RemediationEmailDraft> {
   const search = message ? `?message=${encodeURIComponent(message)}` : "";
   return apiJson<RemediationEmailDraft>(
     `/api/hitl/remediation-email/${checkpointId}${search}`,
-    { ...options, cache: "no-store" }
+    { ...options, cache: "no-store" },
   );
 }
 
@@ -397,23 +407,26 @@ export async function getRemediationEmailDraft(
 export async function hitlRequestClientRemediation(
   checkpointId: string,
   message?: string | null,
-  options: ApiOptions = {}
+  options: ApiOptions = {},
 ): Promise<HITLResponse> {
   return apiJson<HITLResponse>("/api/hitl/request-client-remediation", {
     ...options,
     method: "POST",
-    body: JSON.stringify({ checkpoint_id: checkpointId, message: message ?? null }),
+    body: JSON.stringify({
+      checkpoint_id: checkpointId,
+      message: message ?? null,
+    }),
   });
 }
 
 /** Re-run Extraction — POST /documents/{id}/requeue */
 export async function requeueDocument(
   documentId: number | string,
-  options: ApiOptions = {}
+  options: ApiOptions = {},
 ): Promise<{ success: boolean; message: string; message_id?: string }> {
   return apiJson<{ success: boolean; message: string; message_id?: string }>(
     `/api/documents/${documentId}/requeue`,
-    { ...options, method: "POST" }
+    { ...options, method: "POST" },
   );
 }
 
@@ -439,7 +452,7 @@ export interface ListDocumentsParams {
 
 export async function listDocuments(
   params: ListDocumentsParams = {},
-  options: ApiOptions = {}
+  options: ApiOptions = {},
 ): Promise<DocumentListItem[]> {
   const search = new URLSearchParams();
   if (params.user_id != null) search.set("user_id", String(params.user_id));
@@ -500,7 +513,7 @@ export interface AuditLogDetailResponse {
 /** Full audit log details — GET /audit-logs/{id} (Phase 7.9) */
 export async function getAuditLogDetails(
   auditLogId: number,
-  options: ApiOptions = {}
+  options: ApiOptions = {},
 ): Promise<AuditLogDetailResponse> {
   return apiJson<AuditLogDetailResponse>(`/api/audit-logs/${auditLogId}`, {
     ...options,
@@ -521,10 +534,11 @@ export interface GetAuditLogsParams {
 /** List audit logs — GET /audit-logs (Phase 7.2, 7.6) */
 export async function getAuditLogs(
   params: GetAuditLogsParams = {},
-  options: ApiOptions = {}
+  options: ApiOptions = {},
 ): Promise<AuditLogListResponse> {
   const search = new URLSearchParams();
-  if (params.status != null && params.status !== "") search.set("status", params.status);
+  if (params.status != null && params.status !== "")
+    search.set("status", params.status);
   if (params.audit_target != null && params.audit_target !== "")
     search.set("audit_target", params.audit_target);
   if (params.date_from != null && params.date_from !== "")
@@ -534,18 +548,20 @@ export async function getAuditLogs(
   if (params.search != null && params.search.trim() !== "")
     search.set("search", params.search.trim());
   if (params.page != null) search.set("page", String(params.page));
-  if (params.page_size != null) search.set("page_size", String(params.page_size));
+  if (params.page_size != null)
+    search.set("page_size", String(params.page_size));
   const qs = search.toString();
-  return apiJson<AuditLogListResponse>(
-    `/api/audit-logs${qs ? `?${qs}` : ""}`,
-    { ...options, cache: "no-store" }
-  );
+  console.log(qs);
+  return apiJson<AuditLogListResponse>(`/api/audit-logs${qs ? `?${qs}` : ""}`, {
+    ...options,
+    cache: "no-store",
+  });
 }
 
 /** Audit Health Index — GET /audit-logs/stats (Phase 7.7) */
 export async function getAuditLogsStats(
   params: { date_from?: string | null; date_to?: string | null } = {},
-  options: ApiOptions = {}
+  options: ApiOptions = {},
 ): Promise<AuditHealthStatsResponse> {
   const search = new URLSearchParams();
   if (params.date_from != null && params.date_from !== "")
@@ -555,7 +571,7 @@ export async function getAuditLogsStats(
   const qs = search.toString();
   return apiJson<AuditHealthStatsResponse>(
     `/api/audit-logs/stats${qs ? `?${qs}` : ""}`,
-    { ...options, cache: "no-store" }
+    { ...options, cache: "no-store" },
   );
 }
 
@@ -565,7 +581,7 @@ export async function getAuditLogsStats(
  */
 export async function getTaskStatus(
   taskId: string,
-  options: ApiOptions = {}
+  options: ApiOptions = {},
 ): Promise<TaskStatusResponse> {
   return apiJson<TaskStatusResponse>(`/status/${taskId}`, {
     ...options,

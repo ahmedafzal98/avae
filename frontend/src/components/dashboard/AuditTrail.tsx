@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { getAuditLogs } from "@/lib/api";
+import { useAuthToken } from "@/lib/auth";
 import { Skeleton } from "@/components/ui/skeleton";
 
 function formatTime(iso: string): string {
@@ -31,9 +32,13 @@ function statusToAction(status: string): string {
 }
 
 export function AuditTrail() {
+  const getToken = useAuthToken();
   const { data, isLoading, error } = useQuery({
     queryKey: ["audit-logs-recent"],
-    queryFn: () => getAuditLogs({ page: 1, page_size: 5 }),
+    queryFn: async () => {
+      const token = await getToken();
+      return getAuditLogs({ page: 1, page_size: 5 }, { token });
+    },
   });
 
   const items = data?.items ?? [];
