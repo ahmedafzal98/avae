@@ -26,6 +26,7 @@ import {
   type AuditLogListItem,
   type AuditLogDetailResponse,
 } from "@/lib/api";
+import { useAuthToken } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 import { ExternalLink, ChevronDown, ChevronRight } from "lucide-react";
 
@@ -281,10 +282,14 @@ export function AuditLogTable({
   className,
 }: AuditLogTableProps) {
   const [expandedId, setExpandedId] = useState<number | null>(null);
+  const getToken = useAuthToken();
 
   const { data: detailData, isLoading: detailLoading } = useQuery({
     queryKey: ["audit-log-detail", expandedId],
-    queryFn: () => getAuditLogDetails(expandedId!),
+    queryFn: async () => {
+      const token = await getToken();
+      return getAuditLogDetails(expandedId!, { token });
+    },
     enabled: expandedId != null,
   });
 

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { getHitlCheckpointsSummary } from "@/lib/api";
+import { useAuthToken } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { AlertTriangle, Loader2, ArrowRight } from "lucide-react";
@@ -16,9 +17,13 @@ export interface PendingReconciliationProps {
  * Unassigned Reviewers (placeholder); Resolve Queues button.
  */
 export function PendingReconciliation({ className }: PendingReconciliationProps) {
+  const getToken = useAuthToken();
   const { data, isLoading, error } = useQuery({
     queryKey: ["hitl-checkpoints-summary"],
-    queryFn: () => getHitlCheckpointsSummary(),
+    queryFn: async () => {
+      const token = await getToken();
+      return getHitlCheckpointsSummary({ token });
+    },
   });
 
   if (error) {

@@ -2,6 +2,7 @@
 
 import { useQueries } from "@tanstack/react-query";
 import { getAuditLogsStats } from "@/lib/api";
+import { useAuthToken } from "@/lib/auth";
 import { Skeleton } from "@/components/ui/skeleton";
 
 function formatWeekLabel(d: Date): string {
@@ -11,6 +12,7 @@ function formatWeekLabel(d: Date): string {
 }
 
 export function ComplianceHealthChart() {
+  const getToken = useAuthToken();
   const now = new Date();
   const weeks = Array.from({ length: 6 }, (_, i) => {
     const end = new Date(now);
@@ -28,7 +30,10 @@ export function ComplianceHealthChart() {
   const queries = useQueries({
     queries: weeks.map((w) => ({
       queryKey: ["audit-stats", w.dateFrom, w.dateTo],
-      queryFn: () => getAuditLogsStats({ date_from: w.dateFrom, date_to: w.dateTo }),
+      queryFn: async () => {
+        const token = await getToken();
+        return getAuditLogsStats({ date_from: w.dateFrom, date_to: w.dateTo }, { token });
+      },
     })),
   });
 

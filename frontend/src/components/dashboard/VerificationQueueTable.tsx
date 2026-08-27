@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useQuery } from "@tanstack/react-query";
 import { getHitlCheckpoints, type CheckpointListItem } from "@/lib/api";
+import { useAuthToken } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -80,9 +81,13 @@ function UrgencyDots({ count }: { count: number }) {
 }
 
 export function VerificationQueueTable() {
+  const getToken = useAuthToken();
   const { data, isLoading, error } = useQuery({
     queryKey: ["dashboard-hitl-checkpoints"],
-    queryFn: () => getHitlCheckpoints({ page: 1, page_size: 10 }),
+    queryFn: async () => {
+      const token = await getToken();
+      return getHitlCheckpoints({ page: 1, page_size: 10 }, { token });
+    },
   });
 
   const checkpoints = data?.checkpoints ?? [];
