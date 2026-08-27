@@ -6,6 +6,7 @@ import { Info, Sparkles, Loader2, FileStack } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import type { VerificationFieldRow, SimilarOverrideSuggestion } from "@/lib/api";
 import { getSimilarOverrides } from "@/lib/api";
+import { useAuthToken } from "@/lib/auth";
 
 export interface SimilarOverridesPanelProps {
   className?: string;
@@ -32,11 +33,15 @@ export function SimilarOverridesPanel({
   onApplySame,
 }: SimilarOverridesPanelProps) {
   const field = selectedRow?.field ?? null;
+  const getToken = useAuthToken();
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["similar-overrides", checkpointId, field],
     enabled: Boolean(checkpointId),
-    queryFn: () => getSimilarOverrides(checkpointId!, { field }),
+    queryFn: async () => {
+      const token = await getToken();
+      return getSimilarOverrides(checkpointId!, { field }, { token });
+    },
   });
 
   const suggestionsFromBackend = data?.suggestions ?? [];

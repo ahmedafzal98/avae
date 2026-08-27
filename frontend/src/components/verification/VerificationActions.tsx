@@ -24,6 +24,7 @@ import {
   hitlRequestClientRemediation,
   requeueDocument,
 } from "@/lib/api";
+import { useAuthToken } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 
 export interface VerificationActionsProps {
@@ -46,6 +47,7 @@ export function VerificationActions({
     null
   );
   const [flagDialogOpen, setFlagDialogOpen] = useState(false);
+  const getToken = useAuthToken();
 
   const checkpointId = String(documentId);
   // Approve/Flag apply to documents in PENDING_HUMAN_REVIEW (backend validates)
@@ -67,7 +69,8 @@ export function VerificationActions({
   const handleApprove = async () => {
     setLoading("approve");
     try {
-      await hitlOverride(checkpointId);
+      const token = await getToken();
+      await hitlOverride(checkpointId, undefined, { token });
       onSuccess?.();
     } catch (err) {
       onError?.(err instanceof Error ? err.message : "Approve failed");
@@ -79,7 +82,8 @@ export function VerificationActions({
   const handleRequeue = async () => {
     setLoading("requeue");
     try {
-      await requeueDocument(documentId);
+      const token = await getToken();
+      await requeueDocument(documentId, { token });
       onSuccess?.();
     } catch (err) {
       onError?.(err instanceof Error ? err.message : "Re-run failed");
@@ -91,7 +95,8 @@ export function VerificationActions({
   const handleFlagConfirm = async () => {
     setLoading("flag");
     try {
-      await hitlRequestClientRemediation(checkpointId);
+      const token = await getToken();
+      await hitlRequestClientRemediation(checkpointId, undefined, { token });
       setFlagDialogOpen(false);
       onSuccess?.();
     } catch (err) {

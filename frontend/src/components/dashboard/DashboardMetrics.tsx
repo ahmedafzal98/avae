@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { getAuditLogsStats, getHitlCheckpointsSummary } from "@/lib/api";
+import { useAuthToken } from "@/lib/auth";
 import { MetricCard } from "@/components/dashboard/MetricCard";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -10,23 +11,32 @@ function toYYYYMMDD(d: Date): string {
 }
 
 export function DashboardMetrics() {
+  const getToken = useAuthToken();
   const today = new Date();
   const dateToday = toYYYYMMDD(today);
 
   const { data: statsToday, isLoading: loadingToday } = useQuery({
     queryKey: ["audit-stats-today", dateToday],
-    queryFn: () =>
-      getAuditLogsStats({ date_from: dateToday, date_to: dateToday }),
+    queryFn: async () => {
+      const token = await getToken();
+      return getAuditLogsStats({ date_from: dateToday, date_to: dateToday }, { token });
+    },
   });
 
   const { data: statsPeriod, isLoading: loadingPeriod } = useQuery({
     queryKey: ["audit-stats-period"],
-    queryFn: () => getAuditLogsStats(),
+    queryFn: async () => {
+      const token = await getToken();
+      return getAuditLogsStats({}, { token });
+    },
   });
 
   const { data: checkpointSummary, isLoading: loadingCheckpoints } = useQuery({
     queryKey: ["hitl-checkpoints-summary"],
-    queryFn: () => getHitlCheckpointsSummary(),
+    queryFn: async () => {
+      const token = await getToken();
+      return getHitlCheckpointsSummary({ token });
+    },
   });
 
   const isLoading = loadingToday || loadingPeriod || loadingCheckpoints;

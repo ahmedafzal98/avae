@@ -2,6 +2,7 @@
 
 import { useQueries } from "@tanstack/react-query";
 import { getAuditLogsStats } from "@/lib/api";
+import { useAuthToken } from "@/lib/auth";
 import { Skeleton } from "@/components/ui/skeleton";
 
 function formatDayLabel(d: Date): string {
@@ -9,6 +10,7 @@ function formatDayLabel(d: Date): string {
 }
 
 export function InstancePerformance() {
+  const getToken = useAuthToken();
   const now = new Date();
   const days = Array.from({ length: 6 }, (_, i) => {
     const end = new Date(now);
@@ -26,8 +28,10 @@ export function InstancePerformance() {
   const queries = useQueries({
     queries: days.map((d) => ({
       queryKey: ["instance-perf", d.dateFrom, d.dateTo],
-      queryFn: () =>
-        getAuditLogsStats({ date_from: d.dateFrom, date_to: d.dateTo }),
+      queryFn: async () => {
+        const token = await getToken();
+        return getAuditLogsStats({ date_from: d.dateFrom, date_to: d.dateTo }, { token });
+      },
     })),
   });
 

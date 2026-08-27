@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { getAuditLogsStats } from "@/lib/api";
+import { useAuthToken } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 import { TrendingUp, TrendingDown, Minus, Loader2, BarChart3 } from "lucide-react";
 
@@ -20,13 +21,19 @@ export function AuditHealthIndex({
   dateTo,
   className,
 }: AuditHealthIndexProps) {
+  const getToken = useAuthToken();
   const { data, isLoading, error } = useQuery({
     queryKey: ["audit-logs-stats", dateFrom ?? null, dateTo ?? null],
-    queryFn: () =>
-      getAuditLogsStats({
-        date_from: dateFrom ?? undefined,
-        date_to: dateTo ?? undefined,
-      }),
+    queryFn: async () => {
+      const token = await getToken();
+      return getAuditLogsStats(
+        {
+          date_from: dateFrom ?? undefined,
+          date_to: dateTo ?? undefined,
+        },
+        { token }
+      );
+    },
   });
 
   if (error) {

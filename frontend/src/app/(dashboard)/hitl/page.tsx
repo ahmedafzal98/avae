@@ -13,6 +13,7 @@ import {
   requeueDocument,
 } from "@/lib/api";
 import type { VerificationFieldRow } from "@/lib/api";
+import { useAuthToken } from "@/lib/auth";
 import { DocumentViewerPane } from "@/components/verification/DocumentViewerPane";
 import { VerificationFeedPane } from "@/components/verification/VerificationFeedPane";
 import { CheckpointList } from "@/components/verification/CheckpointList";
@@ -55,6 +56,7 @@ const DocumentPreview = dynamic(
  * Responsive: stacked on small screens (Task 5.9).
  */
 function VerificationDashboardContent() {
+  const getToken = useAuthToken();
   const searchParams = useSearchParams();
   const documentId = searchParams.get("document_id");
   const documentIdNum = useMemo(() => {
@@ -75,7 +77,10 @@ function VerificationDashboardContent() {
     refetch: refetchVerification,
   } = useQuery({
     queryKey: ["document-verification", documentIdNum],
-    queryFn: () => getDocumentVerification(documentIdNum!),
+    queryFn: async () => {
+      const token = await getToken();
+      return getDocumentVerification(documentIdNum!, { token });
+    },
     enabled: documentIdNum != null,
   });
 
@@ -128,12 +133,13 @@ function VerificationDashboardContent() {
   const handleConfirmCorrect = useCallback(async () => {
     if (!documentIdNum) return;
     try {
-      await hitlOverride(String(documentIdNum));
+      const token = await getToken();
+      await hitlOverride(String(documentIdNum), undefined, { token });
       refetchVerification();
     } catch (err) {
       toastError(err instanceof Error ? err.message : "Approve failed");
     }
-  }, [documentIdNum, refetchVerification]);
+  }, [documentIdNum, getToken, refetchVerification]);
 
   const handleFlagForReview = useCallback(() => setFlagDialogOpen(true), []);
 
@@ -141,7 +147,8 @@ function VerificationDashboardContent() {
     if (!documentIdNum) return;
     setFlagLoading(true);
     try {
-      await hitlRequestClientRemediation(String(documentIdNum));
+      const token = await getToken();
+      await hitlRequestClientRemediation(String(documentIdNum), undefined, { token });
       setFlagDialogOpen(false);
       refetchVerification();
     } catch (err) {
@@ -149,17 +156,18 @@ function VerificationDashboardContent() {
     } finally {
       setFlagLoading(false);
     }
-  }, [documentIdNum, refetchVerification]);
+  }, [documentIdNum, getToken, refetchVerification]);
 
   const handleReExtract = useCallback(async () => {
     if (!documentIdNum) return;
     try {
-      await requeueDocument(documentIdNum);
+      const token = await getToken();
+      await requeueDocument(documentIdNum, { token });
       refetchVerification();
     } catch (err) {
       toastError(err instanceof Error ? err.message : "Re-extract failed");
     }
-  }, [documentIdNum, refetchVerification]);
+  }, [documentIdNum, getToken, refetchVerification]);
 
   const hasDiscrepancies = (verification?.rows?.some((r) => r.status === "DISCREPANCY")) ?? false;
 

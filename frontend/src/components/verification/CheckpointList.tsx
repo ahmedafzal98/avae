@@ -18,6 +18,7 @@ import {
   listDocuments,
   type CheckpointListItem,
 } from "@/lib/api";
+import { useAuthToken } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ChevronLeft, ChevronRight, FileText } from "lucide-react";
@@ -47,6 +48,7 @@ export function CheckpointList({ className }: CheckpointListProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const selectedId = searchParams.get("document_id");
+  const getToken = useAuthToken();
 
   const [status, setStatus] = useState<string>(ALL);
   const [auditTarget, setAuditTarget] = useState<string>(ALL);
@@ -59,24 +61,34 @@ export function CheckpointList({ className }: CheckpointListProps) {
       auditTarget === ALL ? undefined : auditTarget,
       page,
     ],
-    queryFn: () =>
-      getHitlCheckpoints({
-        status: status === ALL ? undefined : status,
-        audit_target: auditTarget === ALL ? undefined : auditTarget,
-        page,
-        page_size: PAGE_SIZE,
-      }),
+    queryFn: async () => {
+      const token = await getToken();
+      return getHitlCheckpoints(
+        {
+          status: status === ALL ? undefined : status,
+          audit_target: auditTarget === ALL ? undefined : auditTarget,
+          page,
+          page_size: PAGE_SIZE,
+        },
+        { token }
+      );
+    },
   });
 
   /** Vision POC / EXTRACTED paths finish as COMPLETED — they never appear in the HITL queue */
   const { data: completedDocs, isLoading: completedLoading } = useQuery({
     queryKey: ["documents-completed-sidebar", auditTarget],
-    queryFn: () =>
-      listDocuments({
-        status_filter: "COMPLETED",
-        audit_target: auditTarget === ALL ? undefined : auditTarget,
-        limit: 20,
-      }),
+    queryFn: async () => {
+      const token = await getToken();
+      return listDocuments(
+        {
+          status_filter: "COMPLETED",
+          audit_target: auditTarget === ALL ? undefined : auditTarget,
+          limit: 20,
+        },
+        { token }
+      );
+    },
   });
 
   const selectCheckpoint = useCallback(

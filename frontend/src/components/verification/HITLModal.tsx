@@ -20,7 +20,7 @@ import {
   getRemediationEmailDraft,
 } from "@/lib/api";
 import { Copy, Mail, Loader2, CheckCircle2, Pencil, Send, AlertCircle } from "lucide-react";
-import { useOfficerLevel } from "@/lib/auth";
+import { useAuthToken, useOfficerLevel } from "@/lib/auth";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
@@ -57,6 +57,7 @@ export function HITLModal({
 }: HITLModalProps) {
   const discrepancyRows = verification?.rows?.filter((r) => r.status === "DISCREPANCY") ?? [];
   const officerLevel = useOfficerLevel();
+  const getToken = useAuthToken();
 
   const [action, setAction] = useState<"override" | "manual" | "remediation" | null>(null);
   const [justification, setJustification] = useState("");
@@ -100,7 +101,8 @@ export function HITLModal({
     if (action !== "remediation" || emailDraft || emailDraftLoading) return;
     let cancelled = false;
     setEmailDraftLoading(true);
-    getRemediationEmailDraft(checkpointId)
+    getToken()
+      .then((token) => getRemediationEmailDraft(checkpointId, undefined, { token }))
       .then((draft) => {
         if (!cancelled) {
           setEmailDraft(draft);
@@ -120,7 +122,7 @@ export function HITLModal({
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- emailDraft/emailDraftLoading excluded to avoid refetch loops
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- emailDraft/emailDraftLoading/getToken excluded to avoid refetch loops
   }, [action, checkpointId]);
 
   // Phase 8.3: when "Apply same" is clicked, pre-fill the override justification
@@ -146,9 +148,11 @@ export function HITLModal({
     setEmailDraftLoading(true);
     setEmailDraft(null);
     try {
+      const token = await getToken();
       const draft = await getRemediationEmailDraft(
         checkpointId,
-        remediationMessage.trim() || undefined
+        remediationMessage.trim() || undefined,
+        { token }
       );
       setEmailDraft(draft);
       setError(null);
@@ -176,10 +180,15 @@ export function HITLModal({
       setLoading(true);
       setError(null);
       try {
-        await hitlOverride(checkpointId, {
-          field: selectedRow?.field ?? undefined,
-          justification: justification.trim(),
-        });
+        const token = await getToken();
+        await hitlOverride(
+          checkpointId,
+          {
+            field: selectedRow?.field ?? undefined,
+            justification: justification.trim(),
+          },
+          { token }
+        );
         onSuccess?.();
         handleClose();
       } catch (err) {
@@ -196,7 +205,8 @@ export function HITLModal({
           const val = corrections[r.field]?.trim();
           if (val != null) correctionsPayload[r.field] = val;
         }
-        await hitlManualCorrection(checkpointId, correctionsPayload);
+        const token = await getToken();
+        await hitlManualCorrection(checkpointId, correctionsPayload, { token });
         onSuccess?.();
         handleClose();
       } catch (err) {
@@ -208,9 +218,11 @@ export function HITLModal({
       setLoading(true);
       setError(null);
       try {
+        const token = await getToken();
         await hitlRequestClientRemediation(
           checkpointId,
-          remediationMessage.trim() || undefined
+          remediationMessage.trim() || undefined,
+          { token }
         );
         onSuccess?.();
         handleClose();
