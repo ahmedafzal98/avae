@@ -13,6 +13,9 @@ from fastapi import FastAPI, APIRouter, File, UploadFile, HTTPException, Request
 from fastapi.responses import StreamingResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
+from dotenv import load_dotenv
+load_dotenv()
+
 from app.config import settings
 from app.schemas_api import (
     UploadResponse, TaskStatusResponse, PDFExtractionResult,
