@@ -1,10 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Worker, Viewer } from "@react-pdf-viewer/core";
 import { defaultLayoutPlugin } from "@react-pdf-viewer/default-layout";
 import { highlightPlugin, Trigger } from "@react-pdf-viewer/highlight";
-import type { HighlightArea, RenderHighlightsProps } from "@react-pdf-viewer/highlight";
+import type {
+  HighlightArea,
+  RenderHighlightsProps,
+} from "@react-pdf-viewer/highlight";
+import { useAuthToken } from "@/lib/auth";
 import "@react-pdf-viewer/core/lib/styles/index.css";
 import "@react-pdf-viewer/default-layout/lib/styles/index.css";
 import "@react-pdf-viewer/highlight/lib/styles/index.css";
@@ -46,6 +50,31 @@ export function DocumentPreview({
   const [scale, setScale] = useState(DEFAULT_SCALE);
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // Issue #30: pdf.js's getDocument() (invoked internally by <Viewer fileUrl=...>)
+  // needs the Authorization header itself — the Next.js proxy route only forwards
+  // a header if one is actually sent, and nothing was sending one before this.
+  const getToken = useAuthToken();
+  const [authToken, setAuthToken] = useState<string | null>(null);
+  const [tokenResolved, setTokenResolved] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    setTokenResolved(false);
+    getToken().then((token) => {
+      if (cancelled) return;
+      setAuthToken(token);
+      setTokenResolved(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [getToken]);
+
+  const httpHeaders = useMemo(
+    () => (authToken ? { Authorization: `Bearer ${authToken}` } : undefined),
+    [authToken],
+  );
+
   // Must be called at top level — defaultLayoutPlugin uses hooks internally.
   // Do NOT wrap in useMemo; that violates Rules of Hooks.
   const defaultLayoutPluginInstance = defaultLayoutPlugin({
@@ -58,7 +87,9 @@ export function DocumentPreview({
         return <></>;
       }
       const bgColor =
-        highlightColor === "red" ? "rgba(220, 38, 38, 0.35)" : "rgba(5, 150, 105, 0.35)";
+        highlightColor === "red"
+          ? "rgba(220, 38, 38, 0.35)"
+          : "rgba(5, 150, 105, 0.35)";
       return (
         <div
           style={{
@@ -69,7 +100,7 @@ export function DocumentPreview({
         />
       );
     },
-    [highlightArea, highlightColor]
+    [highlightArea, highlightColor],
   );
 
   const highlightPluginInstance = highlightPlugin({
@@ -87,7 +118,8 @@ export function DocumentPreview({
   useEffect(() => {
     const el = containerRef.current;
     const zoomTo =
-      defaultLayoutPluginInstance.toolbarPluginInstance?.zoomPluginInstance?.zoomTo;
+      defaultLayoutPluginInstance.toolbarPluginInstance?.zoomPluginInstance
+        ?.zoomTo;
     if (!el || !zoomTo) return;
 
     const handleWheel = (e: WheelEvent) => {
@@ -121,6 +153,21 @@ export function DocumentPreview({
     );
   }
 
+  // Don't mount <Viewer> until the token has resolved — otherwise pdf.js's
+  // getDocument() fires its first request with no Authorization header at all.
+  if (!tokenResolved) {
+    return (
+      <div
+        className={`flex h-full items-center justify-center bg-slate-50 ${className}`}
+      >
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-slate-200 border-t-slate-600" />
+          <span className="text-sm text-slate-500">Loading…</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       ref={containerRef}
@@ -129,6 +176,7 @@ export function DocumentPreview({
       <Worker workerUrl={PDF_WORKER_URL}>
         <Viewer
           fileUrl={fileUrl}
+          httpHeaders={httpHeaders}
           plugins={[defaultLayoutPluginInstance, highlightPluginInstance]}
           defaultScale={DEFAULT_SCALE}
           onZoom={(e) => setScale(e.scale)}
