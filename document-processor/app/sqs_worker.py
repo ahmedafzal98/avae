@@ -9,6 +9,11 @@ from datetime import datetime
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from apscheduler.schedulers.background import BackgroundScheduler
+
+from dotenv import load_dotenv
+load_dotenv()
+
 from app.config import settings
 from app.aws_services import aws_services
 from app.api_registry import validate_audit_target, get_valid_audit_targets
@@ -16,6 +21,7 @@ from app.dependencies import redis_client
 from app.database import SessionLocal
 from app.db_models import Document
 from app.graph import run_avae_graph
+from app.reconciliation import run_reconciliation
 
 # Configure logging
 logging.basicConfig(
@@ -166,11 +172,18 @@ def worker_loop():
     logger.info("=" * 70)
     logger.info("Waiting for messages... (Press Ctrl+C to stop)")
     logger.info("")
-    
+
     # Register signal handlers for graceful shutdown
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
-    
+
+    # Issue #10: background reconciliation job, runs independently of the SQS
+    # polling loop below to recover documents stuck in PENDING after a crash.
+    scheduler = BackgroundScheduler()
+    scheduler.add_job(run_reconciliation, "interval", minutes=10, id="reconciliation")
+    scheduler.start()
+    logger.info("🔁 Reconciliation job scheduled (every 10 minutes)")
+
     consecutive_errors = 0
     max_consecutive_errors = 5
     
@@ -251,6 +264,25 @@ def worker_loop():
                         aws_services.delete_message_from_sqs(receipt_handle)
                         continue
                     
+                    # Issue #10: idempotency check. A document may already be done if the
+                    # reconciliation job re-sent this message and the original message also
+                    # eventually arrived (or vice versa). Skip reprocessing in that case.
+                    ALREADY_DONE_STATUSES = ("COMPLETED", "PENDING_HUMAN_REVIEW")
+                    db = SessionLocal()
+                    try:
+                        doc = db.query(Document).filter(Document.id == int(task_id)).first()
+                        already_done_status = doc.status if doc and doc.status in ALREADY_DONE_STATUSES else None
+                    finally:
+                        db.close()
+
+                    if already_done_status:
+                        logger.warning(
+                            f"⚠️  Task {task_id} is already {already_done_status}; "
+                            "skipping duplicate processing and deleting message"
+                        )
+                        aws_services.delete_message_from_sqs(receipt_handle)
+                        continue
+
                     # Process the PDF
                     success = process_pdf_from_s3(
                         task_id, s3_bucket, s3_key, filename, prompt, audit_target
@@ -293,6 +325,8 @@ def worker_loop():
             # Back off before retrying
             time.sleep(5)
     
+    scheduler.shutdown(wait=False)
+
     logger.info("")
     logger.info("=" * 70)
     logger.info("🛑 SQS Worker Stopped")

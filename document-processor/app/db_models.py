@@ -61,13 +61,19 @@ class Document(Base):
     # AVAE: Audit target for compliance verification (epc, companies_house, hm_land_registry)
     audit_target: Mapped[str | None] = mapped_column(String(50), nullable=True, default="epc")
 
-    # Status: PENDING, PROCESSING, COMPLETED, FAILED
+    # Status: PENDING, PROCESSING, COMPLETED, FAILED, FAILED_PERMANENT
+    # FAILED_PERMANENT: set by the reconciliation job (app/reconciliation.py) when a
+    # document has been stuck in PENDING and re-queued retry_count times without success.
     status: Mapped[str] = mapped_column(
         String(50),
         nullable=False,
         default="PENDING",
         index=True
     )
+
+    # Issue #10: number of times the reconciliation job has re-queued this document
+    # after finding it stuck in PENDING. Capped at MAX_RETRY_COUNT before FAILED_PERMANENT.
+    retry_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     
     # Result text - extracted content (can be large)
     result_text: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -113,6 +119,8 @@ class Document(Base):
     __table_args__ = (
         Index("idx_user_status", "user_id", "status"),
         Index("idx_created_at", "created_at"),
+        # Issue #10: reconciliation job filters on all three columns together.
+        Index("idx_documents_reconciliation", "status", "created_at", "retry_count"),
     )
     
     def __repr__(self) -> str:

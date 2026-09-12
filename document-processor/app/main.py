@@ -27,6 +27,7 @@ from app.dependencies import (
     get_all_tasks_generator, stream_task_results, get_current_user
 )
 from app.aws_services import aws_services
+from app.sqs_message import build_processing_message
 from app.database import init_db, get_async_db
 from app.db_models import User, Document, AuditLog
 from app.schemas import DocumentResponse, DocumentCreate, UserResponse, UserCreate, ChatRequest, ChatResponse
@@ -363,16 +364,15 @@ async def upload_files(
         redis_client.rpush("all_tasks", task_id)
         
         # Send message to SQS
-        sqs_message = {
-            "task_id": task_id,
-            "s3_bucket": settings.s3_bucket_name,
-            "s3_key": s3_key,
-            "filename": file.filename,
-            "created_at": datetime.now().isoformat(),
-            "prompt": prompt or "",
-            "audit_target": validated_audit_target,
-        }
-        
+        sqs_message = build_processing_message(
+            task_id=task_id,
+            s3_bucket=settings.s3_bucket_name,
+            s3_key=s3_key,
+            filename=file.filename,
+            prompt=prompt,
+            audit_target=validated_audit_target,
+        )
+
         message_id = aws_services.send_message_to_sqs(
             message_body=sqs_message,
             message_attributes={"task_id": task_id}
