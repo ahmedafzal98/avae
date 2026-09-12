@@ -19,7 +19,7 @@ class ProcessingTask(BaseModel):
 class TaskStatusResponse(BaseModel):
     """API response for task status"""
     task_id: str
-    status: Literal["PENDING", "PROCESSING", "COMPLETED", "FAILED", "PENDING_HUMAN_REVIEW", "AWAITING_CLIENT_REMEDIATION", "EXPIRED"]
+    status: Literal["PENDING", "PROCESSING", "COMPLETED", "FAILED", "FAILED_PERMANENT", "PENDING_HUMAN_REVIEW", "AWAITING_CLIENT_REMEDIATION", "EXPIRED"]
     progress: Optional[float] = Field(None, ge=0, le=100, description="Progress percentage")
     filename: str
     created_at: str
