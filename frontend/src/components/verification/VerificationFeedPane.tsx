@@ -19,7 +19,15 @@ import {
   type VisionPocDisplayItem,
 } from "@/lib/vision-poc-display";
 
-function formatFieldName(field: string): string {
+/**
+ * Field display name. `fieldLabel` (from the backend's VerificationFieldRow.field_label)
+ * takes precedence when present — it's how synthetic, non-extracted fields (e.g. "api",
+ * emitted when a registry lookup fails entirely) get a real label instead of a
+ * title-cased raw field name like "Api". See main.py's SYNTHETIC_FIELD_LABELS, the
+ * single place that decides these labels.
+ */
+function formatFieldName(field: string, fieldLabel?: string | null): string {
+  if (fieldLabel) return fieldLabel;
   return field
     .split("_")
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
@@ -564,7 +572,7 @@ function ComparisonCard({
           visionPocFieldLabelArabic(row.field) != null ? (
             <div className="flex min-w-0 flex-col gap-0.5 sm:flex-row sm:items-baseline sm:gap-2">
               <span className="text-sm font-medium text-slate-800">
-                {formatFieldName(row.field)}
+                {formatFieldName(row.field, row.field_label)}
               </span>
               <span
                 className="text-sm font-medium text-slate-600"
@@ -576,7 +584,7 @@ function ComparisonCard({
             </div>
           ) : (
             <span className="text-sm font-medium text-slate-600">
-              {formatFieldName(row.field)}
+              {formatFieldName(row.field, row.field_label)}
             </span>
           )}
           {isMatch && (

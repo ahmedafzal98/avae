@@ -72,12 +72,18 @@ def _values_match(extracted: Any, api_val: Any, normalize_fn=None) -> bool:
 def _verify_companies_house(
     extracted: dict[str, Any], api: dict[str, Any]
 ) -> tuple[str, list[dict[str, Any]], list[str]]:
-    """Verify Companies House extraction against API response."""
+    """
+    Verify Companies House extraction against API response.
+
+    company_status is deliberately excluded from this comparison: it's not part
+    of CorporateKYCExtraction (see app/schemas_extraction.py) — it's populated
+    directly from the API in fetch_api() rather than extracted from the
+    document, so there's nothing document-derived to compare it against.
+    """
     fields = [
         "company_number",
         "company_name",
         "registered_office_address",
-        "company_status",
         "company_type",
         "incorporation_date",
     ]

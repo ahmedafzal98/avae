@@ -59,6 +59,32 @@ def _update_progress(task_id: str, progress: int, status: str = "PROCESSING"):
         logger.error(f"Error updating progress for {task_id}: {e}")
 
 
+def _burst_pdf_pages(pdf_content: bytes) -> list[dict[str, Any]]:
+    """PyMuPDF: burst PDF bytes into per-page dicts (text, rendered image, dims).
+
+    Split out of burst_pdf (Task 4.1) so local/batch tooling can burst pages from
+    bytes already on disk, without going through the S3 download below.
+    """
+    import fitz  # PyMuPDF
+
+    doc = fitz.open(stream=pdf_content, filetype="pdf")
+    pages: list[dict[str, Any]] = []
+    for i in range(len(doc)):
+        page = doc[i]
+        text = page.get_text() or ""
+        pix = page.get_pixmap(dpi=150)
+        image_bytes = pix.tobytes("png")
+        pages.append({
+            "page_num": i + 1,
+            "text": text,
+            "image_bytes": image_bytes,
+            "width": pix.width,
+            "height": pix.height,
+        })
+    doc.close()
+    return pages
+
+
 def burst_pdf(state: AVAEState) -> dict[str, Any]:
     """Download PDF from S3, burst into pages in memory (Task 4.1: PyMuPDF)."""
     task_id = state["task_id"]
@@ -78,29 +104,10 @@ def burst_pdf(state: AVAEState) -> dict[str, Any]:
     temp_file.close()
     logger.info(f"💾 Saved to temp file: {temp_file_path}")
 
-    # Task 4.1: PyMuPDF burst into pages in memory
     try:
-        import fitz  # PyMuPDF
-
-        doc = fitz.open(stream=pdf_content, filetype="pdf")
-        pages: list[dict[str, Any]] = []
-        for i in range(len(doc)):
-            page = doc[i]
-            text = page.get_text() or ""
-            pix = page.get_pixmap(dpi=150)
-            image_bytes = pix.tobytes("png")
-            pages.append({
-                "page_num": i + 1,
-                "text": text,
-                "image_bytes": image_bytes,
-                "width": pix.width,
-                "height": pix.height,
-            })
-        doc.close()
-
+        pages = _burst_pdf_pages(pdf_content)
         if not pages:
             return {"error": "PDF has no pages"}
-
         logger.info(f"📄 Burst into {len(pages)} page(s)")
     except Exception as e:
         logger.error(f"❌ PyMuPDF burst failed: {e}")
@@ -313,6 +320,7 @@ def normalize(state: AVAEState) -> dict[str, Any]:
     """Structured LLM extraction (text and/or GPT-4o vision for vision_poc)."""
     extracted_text = state.get("extracted_text") or ""
     audit_target = state["audit_target"]
+    track_usage = state.get("track_usage", False)  # opt-in: batch/test tooling only
 
     if audit_target == "vision_poc":
         extracted_json = None
@@ -323,9 +331,13 @@ def normalize(state: AVAEState) -> dict[str, Any]:
             extracted_json = extract_structured(extracted_text, audit_target)
         if isinstance(extracted_json, dict):
             extracted_json = strip_empty_extraction_fields(extracted_json) or None
-    else:
-        extracted_json = extract_structured(extracted_text, audit_target)
+        return {"extracted_json": extracted_json}
 
+    if track_usage:
+        extracted_json, usage = extract_structured(extracted_text, audit_target, return_usage=True)
+        return {"extracted_json": extracted_json, "extraction_usage": usage}
+
+    extracted_json = extract_structured(extracted_text, audit_target)
     return {"extracted_json": extracted_json}
 
 
@@ -348,6 +360,14 @@ def fetch_api(state: AVAEState) -> dict[str, Any]:
         except Exception as api_err:
             logger.warning(f"⚠️  API fetch failed: {api_err}")
             api_response = None
+
+    # company_status isn't part of CorporateKYCExtraction (see schemas_extraction.py) —
+    # it's not printed on these filing types, so it's populated straight from the
+    # registry response rather than asked of the LLM. Not compared/verified against
+    # anything document-derived (there's nothing to compare it to); see verification.py.
+    if audit_target == "companies_house" and extracted_json and api_response:
+        extracted_json = {**extracted_json, "company_status": api_response.get("company_status")}
+        return {"api_response": api_response, "extracted_json": extracted_json}
 
     return {"api_response": api_response}
 
