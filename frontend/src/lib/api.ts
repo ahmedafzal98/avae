@@ -214,6 +214,10 @@ export interface PdfLocation {
 /** Verification table row (Task 5.4) */
 export interface VerificationFieldRow {
   field: string;
+  /** Human-readable override for `field`, set for synthetic fields (e.g. "api" lookup
+   *  failures) that don't correspond to an extracted document field. Null for ordinary
+   *  fields — fall back to title-casing `field`. */
+  field_label?: string | null;
   document_value: unknown;
   api_value: unknown;
   status: "VERIFIED" | "DISCREPANCY" | "PENDING";

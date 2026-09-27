@@ -31,11 +31,20 @@ class EPCExtraction(BaseModel):
 # ---------------------------------------------------------------------------
 
 class CorporateKYCExtraction(BaseModel):
-    """Structured extraction for company documents (Companies House verification)."""
+    """
+    Structured extraction for company documents (Companies House verification).
+
+    company_status is deliberately NOT extracted here: it is essentially never
+    printed on the filing types in our test corpus (accounts, confirmation
+    statements) — asking the LLM for it produced a ~41% hallucination rate
+    (plausible-but-invented values like "Active"/"Dormant" with no textual
+    basis). It's populated directly from the Companies House API response
+    instead (see app/graph/nodes.py fetch_api()), which is its only reliable
+    source, and is therefore not part of the extraction-vs-registry comparison.
+    """
     company_number: str = Field(description="The 8-digit Companies House registration number.")
     company_name: str = Field(description="The registered company name.")
     registered_office_address: str = Field(description="The registered office address.")
-    company_status: str = Field(description="Active, Dissolved, etc.")
     company_type: str = Field(description="ltd, plc, etc.")
     incorporation_date: Optional[str] = Field(default=None, description="Date of incorporation.")
 

@@ -17,6 +17,7 @@ class AVAEState(TypedDict, total=False):
     filename: str
     audit_target: str
     prompt: str
+    track_usage: bool  # opt-in: batch/test tooling only, unset in production
 
     # burst_pdf
     pdf_content: bytes
@@ -35,6 +36,7 @@ class AVAEState(TypedDict, total=False):
 
     # normalize
     extracted_json: dict[str, Any] | None
+    extraction_usage: dict[str, Any] | None  # set only when track_usage=True
 
     # fetch_api
     api_response: dict[str, Any] | None

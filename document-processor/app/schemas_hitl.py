@@ -145,6 +145,15 @@ class VerificationFieldRow(BaseModel):
     """Single row for VerificationTable: Field Name, Document Value, API Value, Status."""
 
     field: str = Field(..., description="Field name (e.g. reference_number, property_address)")
+    field_label: str | None = Field(
+        None,
+        description=(
+            "Human-readable override for field name, used for synthetic fields that "
+            "don't correspond to an extracted document field (e.g. 'api', emitted by "
+            "verify_extraction() when a registry lookup fails entirely). Null for "
+            "ordinary fields — the UI falls back to title-casing `field` in that case."
+        ),
+    )
     document_value: Any = Field(None, description="Value extracted from document")
     api_value: Any = Field(None, description="Value from external API")
     status: str = Field(

@@ -1019,6 +1019,30 @@ async def get_document_pdf(document_id: int, db: AsyncSession = Depends(get_asyn
     )
 
 
+# Synthetic discrepancy fields that verify_extraction() (app/verification.py) can emit
+# when there's no extracted document field to compare at all — e.g. "api" when the
+# external registry lookup itself failed (api_response_json is None). These aren't real
+# extracted fields, so the generic title-cased field name ("Api") and raw flag values
+# ("available" / "API unavailable or failed") read as a broken row rather than a real
+# warning. This is the one place that maps them to a human-readable label and message;
+# verify_extraction()'s discrepancy_flags themselves are untouched. Add an entry here
+# for any future synthetic flag (Land Registry / EPC lookup failures use the same "api"
+# field name today, via the same generic branch in verify_extraction()).
+SYNTHETIC_FIELD_LABELS = {
+    "api": "Registry Verification",
+}
+
+
+def _synthetic_field_message(field: str, extracted_json: dict | None) -> str:
+    """Human-readable message for a synthetic field's "Official Record" column."""
+    if field == "api":
+        company_number = (extracted_json or {}).get("company_number")
+        if company_number:
+            return f"Could not verify against the official registry — lookup failed for company number {company_number}"
+        return "Could not verify against the official registry — lookup failed"
+    return "Verification could not be completed"
+
+
 def _build_verification_rows(
     extracted_json: dict,
     api_response_json: dict | list | None,
@@ -1027,7 +1051,7 @@ def _build_verification_rows(
 ) -> list[dict]:
     """
     Build VerificationTable rows from audit log data (Task 5.4).
-    Returns list of {field, document_value, api_value, status}.
+    Returns list of {field, field_label, document_value, api_value, status}.
     """
     flags = discrepancy_flags or []
     flag_by_field = {f.get("field"): f for f in flags if isinstance(f, dict) and f.get("field")}
@@ -1073,8 +1097,14 @@ def _build_verification_rows(
 
         if flag:
             status = "DISCREPANCY"
-            doc_val = flag.get("extracted", doc_val)
-            api_val = flag.get("api", api_val)
+            if field in SYNTHETIC_FIELD_LABELS:
+                # No extracted document field is actually being compared here — don't
+                # show the raw placeholder flag values as if they were one.
+                doc_val = None
+                api_val = _synthetic_field_message(field, extracted_json)
+            else:
+                doc_val = flag.get("extracted", doc_val)
+                api_val = flag.get("api", api_val)
         elif doc_val is not None and api_val is not None:
             status = "VERIFIED"
         else:
@@ -1082,6 +1112,7 @@ def _build_verification_rows(
 
         rows.append({
             "field": field,
+            "field_label": SYNTHETIC_FIELD_LABELS.get(field),
             "document_value": doc_val,
             "api_value": api_val,
             "status": status,
